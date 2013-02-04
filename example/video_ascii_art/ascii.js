@@ -1,10 +1,18 @@
-window.onload = function(){
+requirejs.config({
+    baseUrl: '.',
+    paths: {
+        kick: '../js/kick'
+    }
+});
+
+requirejs(['kick'],
+    function (KICK) {
     "use strict";
 
     function setMaterial(vertexShaderId, fragmentShaderId, meshRenderer, materialUniforms){
             var vs = document.getElementById(vertexShaderId).value;
             var fs = document.getElementById(fragmentShaderId).value;
-            var shader = new KICK.material.Shader(engine);
+            var shader = new KICK.material.Shader();
             shader.vertexShaderSrc = vs;
             shader.fragmentShaderSrc = fs;
             shader.errorLog = console.log;
@@ -15,7 +23,7 @@ window.onload = function(){
                 return;
             }
 
-            meshRenderer.material = new KICK.material.Material(engine,{
+            meshRenderer.material = new KICK.material.Material({
                 name:"Some material",
                 shader:shader,
                 uniformData: materialUniforms
@@ -41,10 +49,10 @@ window.onload = function(){
         var gameObject = activeScene.createGameObject();
         var meshRenderer = new KICK.scene.MeshRenderer();
 
-        var texture = new KICK.texture.MovieTexture(engine,{
+        var texture = new KICK.texture.MovieTexture({
             videoElement:videoElement
         });
-        var asciiTexture = new KICK.texture.Texture(engine,{
+        var asciiTexture = new KICK.texture.Texture({
             generateMipmaps: false,
             magFilter: KICK.core.Constants.GL_NEAREST,
             minFilter:  KICK.core.Constants.GL_NEAREST,
@@ -168,4 +176,4 @@ window.onload = function(){
     documentResized();
 
     window.onresize = documentResized;
-};
+});

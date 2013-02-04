@@ -1,0 +1,22 @@
+<html>
+<body>
+<canvas id="3dCanvas" width="50" height="50"></canvas>
+
+<script src="require.js"></script>
+<script type="text/javascript">
+    var req = require.config({
+            paths: {
+                kick: 'kick-debug'
+            }
+        });
+    req(['kick'],
+            function (kick) {
+                // init engine (create 3d context)
+                var engine = new kick.core.Engine('3dCanvas');
+                document.body.appendChild(document.createTextNode("Engine loaded. KickJS "+engine.version));
+            }
+    );
+</script>
+
+</body>
+</html>

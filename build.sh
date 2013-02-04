@@ -11,26 +11,25 @@ googleClojure=$3
 #Location of Node.js
 nodejs=$4
 
-version=0_4_2
+#Location of Rhino (js.jar) (http://www.mozilla.org/rhino/)
+rhino=$5
+
+version=0_5_0
 
 # The location of the files to parse.  Parses subdirectories, but will fail if
 # there are duplicate file names in these directories.  You can specify multiple
 # source trees:
 parser_in=$project/src/js
 
-# The location to output the parser data.  This output is a file containing a 
+# The location to output the parser data.  This output is a file containing a
 # json string, and copies of the parsed files.
 parser_out=$project/API/parser
 
 # The directory to put the html file outputted by the generator
 generator_out=$project/API/generator
 
-# The location of the template files.  Any subdirectories here will be copied
-# verbatim to the destination directory.
-template=$project/build-asset/doc-template
-
 # The version of your project to display within the documentation.
-version=0.4.2
+version=0.5.0
 
 # The version of YUI the project is using.  This effects the output for
 # YUI configuration attributes.  This should start with '2' or '3'.
@@ -46,36 +45,22 @@ rm -rf $generator_out
 
 ##############################################################################
 echo "Include GLSL files as constants"
-$nodejs $project/preprocessor/include_glsl_files $project/src/glsl/ $project/src/js/glslconstants.js
+$nodejs $project/preprocessor/include_glsl_files $project/src/glsl/ $project/src/js/kick/material/glslconstants.js
 
 ##############################################################################
 echo "Running Precompiler dev"
 mkdir $project/build
 rm -rf $project/build/pre
 mkdir $project/build/pre
-$nodejs $project/preprocessor/preprocessor $project/src/js/math.js $project/build/pre/math.js $version true true
-$nodejs $project/preprocessor/preprocessor $project/src/js/core.js $project/build/pre/core.js $version true true
-$nodejs $project/preprocessor/preprocessor $project/src/js/chunk.js $project/build/pre/chunk.js $version true true
-$nodejs $project/preprocessor/preprocessor $project/src/js/scene.js $project/build/pre/scene.js $version true true
-$nodejs $project/preprocessor/preprocessor $project/src/js/mesh.js $project/build/pre/mesh.js $version true true
-$nodejs $project/preprocessor/preprocessor $project/src/js/material.js $project/build/pre/material.js $version true true
-$nodejs $project/preprocessor/preprocessor $project/src/js/meshfactory.js $project/build/pre/meshfactory.js $version true true
-$nodejs $project/preprocessor/preprocessor $project/src/js/texture.js $project/build/pre/texture.js $version true true
-$nodejs $project/preprocessor/preprocessor $project/src/js/collada.js $project/build/pre/collada.js $version true true
-$nodejs $project/preprocessor/preprocessor $project/src/js/obj.js $project/build/pre/obj.js $version true true
-$nodejs $project/preprocessor/preprocessor $project/src/js/resource.js $project/build/pre/resource.js $version true true
-cp $project/src/js/constants.js $project/build/pre/constants.js
-cp $project/src/js/glslconstants.js $project/build/pre/glslconstants.js
+$nodejs $project/preprocessor/preprocessor $project/src/js $project/build/pre $version true true
 
-echo "Creating kick-debug.js"
-cat "$project/license.txt" $project/build/pre/constants.js $project/build/pre/glslconstants.js $project/build/pre/math.js $project/build/pre/core.js $project/build/pre/chunk.js $project/build/pre/mesh.js $project/build/pre/scene.js $project/build/pre/texture.js $project/build/pre/material.js $project/build/pre/meshfactory.js $project/build/pre/collada.js $project/build/pre/obj.js $project/build/pre/resource.js > $project/build/kick-debug-$version.js
+echo "Package AMD and compress (debug)"
+
+java -classpath $rhino:$googleClojure org.mozilla.javascript.tools.shell.Main $project/preprocessor/r.js -o name=kick out=$project/build/kick-debug.js.tmp baseUrl=$project/build/pre optimize=none
 
 
 ##############################################################################
 echo "Generating documentation (YUI Doc)"
-# echo $yuidoc_home/bin/yuidoc.py $parser_in -p $parser_out -o $generator_out -t $template -v $version -Y $yuiversion -m "$projectname" -u $projecturl
-# $yuidoc_home/bin/yuidoc.py $parser_in -p $parser_out -o $generator_out -t $template -v $version -Y $yuiversion -m "$projectname" -u $projecturl
-
 
 # Install (when running NodeJS using sudo npm -g i yuidocjs
 # Unix specific and specific for (!!!)
@@ -88,8 +73,8 @@ $yuidoc_bin -c $project/yuidoc.json . -o $generator_out
 echo "Zipping Documentation (YUI Doc)"
 cd $project/API
 mv generator API_$version
-rm $project/API_$version.zip
-zip -r ../API_$version.zip API_$version
+rm $project/KickJS-doc.zip
+zip -r ../KickJS-doc.zip API_$version
 mv API_$version generator
 
 ##############################################################################
@@ -97,51 +82,31 @@ echo "Running Precompiler release"
 mkdir $project/build
 rm -rf $project/build/pre
 mkdir $project/build/pre
-$nodejs $project/preprocessor/preprocessor $project/src/js/math.js $project/build/pre/math.js $version false false
-$nodejs $project/preprocessor/preprocessor $project/src/js/core.js $project/build/pre/core.js $version false false
-$nodejs $project/preprocessor/preprocessor $project/src/js/chunk.js $project/build/pre/chunk.js $version false false
-$nodejs $project/preprocessor/preprocessor $project/src/js/scene.js $project/build/pre/scene.js $version false false
-$nodejs $project/preprocessor/preprocessor $project/src/js/mesh.js $project/build/pre/mesh.js $version false false
-$nodejs $project/preprocessor/preprocessor $project/src/js/material.js $project/build/pre/material.js $version false false
-$nodejs $project/preprocessor/preprocessor $project/src/js/meshfactory.js $project/build/pre/meshfactory.js $version false false
-$nodejs $project/preprocessor/preprocessor $project/src/js/texture.js $project/build/pre/texture.js $version false false
-$nodejs $project/preprocessor/preprocessor $project/src/js/collada.js $project/build/pre/collada.js $version false false
-$nodejs $project/preprocessor/preprocessor $project/src/js/obj.js $project/build/pre/obj.js $version false false
-$nodejs $project/preprocessor/preprocessor $project/src/js/resource.js $project/build/pre/resource.js $version false false
-cp $project/src/js/constants.js $project/build/pre/constants.js
-cp $project/src/js/glslconstants.js $project/build/pre/glslconstants.js
+$nodejs $project/preprocessor/preprocessor $project/src/js $project/build/pre $version false false
 
-## For debugging purpose only - skip preprocessor
-## cp $project/src/js/math.js $project/build/pre/math.js
-## cp $project/src/js/core.js $project/build/pre/core.js
-## cp $project/src/js/chunk.js $project/build/pre/chunk.js
-## cp $project/src/js/scene.js $project/build/pre/scene.js
-## cp $project/src/js/mesh.js $project/build/pre/mesh.js
-## cp $project/src/js/material.js $project/build/pre/material.js
-## cp $project/src/js/meshfactory.js $project/build/pre/meshfactory.js
-## cp $project/src/js/texture.js $project/build/pre/texture.js
-## cp $project/src/js/collada.js $project/build/pre/collada.js
-## cp $project/src/js/obj.js $project/build/pre/obj.js
-## cp $project/src/js/resource.js $project/build/pre/resource.js
+echo "Package AMD and compress (release)"
 
-##############################################################################
-## http://code.google.com/closure/compiler/
-##############################################################################
-
-echo "Running Google Clojure compiler"
-java -jar $googleClojure --js_output_file "$project/build/kick-min.js.tmp" --js $project/build/pre/constants.js --js $project/build/pre/glslconstants.js --js $project/build/pre/math.js --js $project/build/pre/core.js --js $project/build/pre/chunk.js --js $project/build/pre/texture.js --js $project/build/pre/scene.js --js $project/build/pre/mesh.js --js $project/build/pre/material.js --js $project/build/pre/meshfactory.js --js $project/build/pre/collada.js --js $project/build/pre/obj.js --js $project/build/pre/resource.js --language_in ECMASCRIPT5_STRICT
+java -classpath $rhino:$googleClojure org.mozilla.javascript.tools.shell.Main $project/preprocessor/r.js -o name=kick out=$project/build/kick.js.tmp baseUrl=$project/build/pre
 
 ##############################################################################
 echo "Adding license info compiler"
-cat "$project/license.txt" "$project/build/kick-min.js.tmp" > "$project/build/kick-min-$version.js"
-rm "$project/build/kick-min.js.tmp"
+cat "$project/license_min.txt" "$project/build/kick-debug.js.tmp" > "$project/build/kick-debug.js"
+cat "$project/license_min.txt" "$project/build/kick.js.tmp" > "$project/build/kick.js"
+rm "$project/build/kick-debug.js.tmp"
+rm "$project/build/kick.js.tmp"
 
 ##############################################################################
 echo "Copy kickjs to examples"
 mkdir "$project/example/js/"
-cp "$project/build/kick-min-$version.js" "$project/example/js/kick-min-$version.js"
-cp "$project/build/kick-debug-$version.js" "$project/example/js/kick-debug-$version.js"
-cp "$project/src/js-dependencies/webgl-debug.js" "$project/example/js/webgl-debug.js"
+echo "$project/build/kick.js"
+echo "$project/example/js/kick.js"
+cp "$project/build/kick.js" "$project/example/js/kick.js"
+cp "$project/build/kick-debug.js" "$project/example/js/kick-debug.js"
+mkdir "$project/tool/js/"
+cp "$project/build/kick.js" "$project/tool/js/kick.js"
+cp "$project/build/kick-debug.js" "$project/tool/js/kick-debug.js"
+cp "$project/build/kick.js" "$project/test/tutorial/kick.js"
+cp "$project/build/kick-debug.js" "$project/test/tutorial/kick-debug.js"
 
 echo "Build finished"
 date
