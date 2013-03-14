@@ -34,11 +34,12 @@ define(["./Util", "kick/mesh/MeshDataFactory", "kick/material/GLSLConstants", ".
          * <li><b>Plane</b> Url: kickjs://mesh/plane/<br></li>
          * <li><b>UVSphere</b> Url: kickjs://mesh/uvsphere/?slides=20&stacks=10&radius=1.0<br>Note that the parameters is optional</li>
          * <li><b>Cube</b> Url: kickjs://mesh/cube/?length=1.0<br>Note that the parameters is optional</li>
+         * <li><b>Point</b> Url: kickjs://mesh/point/</li>
          * </ul>
          * @method getMeshData
          * @param {String} url
          * @param {kick.mesh.Mesh} meshDestination
-         * @param resourceTracker {ResourceTracker} Optional
+         * @param {ResourceTracker} [resourceTracker]
          */
         this.getMeshData = function (url, meshDestination, resourceTracker) {
             var meshDataObj,
@@ -63,6 +64,8 @@ define(["./Util", "kick/mesh/MeshDataFactory", "kick/material/GLSLConstants", ".
             } else if (url.indexOf("kickjs://mesh/cube/") === 0) {
                 length = getParameterFloat(url, "length");
                 meshDataObj = MeshDataFactory.createCubeData(length);
+            } else if (url.indexOf("kickjs://mesh/point/") === 0) {
+                meshDataObj = MeshDataFactory.createPointData();
             } else {
                 Util.fail("No meshdata found for " + url);
                 if (resourceTracker && resourceTracker.resourceLoadingStarted){
@@ -85,11 +88,13 @@ define(["./Util", "kick/mesh/MeshDataFactory", "kick/material/GLSLConstants", ".
          *  <li><b>Specular</b> Url: kickjs://shader/specular/</li>
          *  <li><b>Diffuse</b> Url: kickjs://shader/diffuse/</li>
          *  <li><b>Unlit</b> Url: kickjs://shader/unlit/</li>
-         *  <li><b>Transparent Specular</b> Url: kickjs://shader/transparent_specular/</li>
-         *  <li><b>Transparent Unlit</b> Url: kickjs://shader/transparent_unlit/</li>
-         *  <li><b>Shadowmap</b> Url: kickjs://shader/__shadowmap/</li>
-         *  <li><b>Pick</b> Url: kickjs://shader/__pick/</li>
-         *  <li><b>Error</b> Url: kickjs://shader/__error/<br></li>
+         *  <li><b>Bumped Specular</b> Url: kickjs://shader/bumped\_specular/</li>
+         *  <li><b>Transparent Point Unlit</b> Url: kickjs://shader/point\_transparent\_unlit/</li>
+         *  <li><b>Transparent Specular</b> Url: kickjs://shader/transparent\_specular/</li>
+         *  <li><b>Transparent Unlit</b> Url: kickjs://shader/transparent\_unlit/</li>
+         *  <li><b>Shadowmap</b> Url: kickjs://shader/\_\_shadowmap/</li>
+         *  <li><b>Pick</b> Url: kickjs://shader/\_\_pick/</li>
+         *  <li><b>Error</b> Url: kickjs://shader/\_\_error/<br></li>
          *  </ul>
          * @method getShaderData
          * @param {String} url
@@ -115,11 +120,11 @@ define(["./Util", "kick/mesh/MeshDataFactory", "kick/material/GLSLConstants", ".
                             depthMask = false;
                             renderOrder = 2000;
                         }
-                        if (shaderName === "__shadowmap") {
+
+                        else if (shaderName === "__shadowmap") {
                             polygonOffsetEnabled = true;
                         }
-
-                        if (shaderName === "specular" || shaderName === "transparent_specular") {
+                        else if (shaderName === "specular" || shaderName === "transparent_specular") {
                             defaultUniforms = {
                                 mainColor: [1, 1, 1, 1],
                                 mainTexture: engine.project.load(engine.project.ENGINE_TEXTURE_WHITE),
@@ -127,7 +132,7 @@ define(["./Util", "kick/mesh/MeshDataFactory", "kick/material/GLSLConstants", ".
                                 specularExponent: 50
                             };
                         }
-                        if (shaderName === "diffuse" ||
+                        else if (shaderName === "diffuse" ||
                                 shaderName === "transparent_diffuse" ||
                                 shaderName === "unlit" ||
                                 shaderName === "unlit_vertex_color" ||
@@ -135,6 +140,22 @@ define(["./Util", "kick/mesh/MeshDataFactory", "kick/material/GLSLConstants", ".
                             defaultUniforms = {
                                 mainColor: [1, 1, 1, 1],
                                 mainTexture: engine.project.load(engine.project.ENGINE_TEXTURE_WHITE)
+                            };
+                        }
+                        else if (shaderName === "bumped_specular"){
+                            defaultUniforms = {
+                                mainColor: [1, 1, 1, 1],
+                                mainTexture: engine.project.load(engine.project.ENGINE_TEXTURE_WHITE),
+                                normalMap: engine.project.load(engine.project.ENGINE_TEXTURE_DEFAULT_NORMAL),
+                                specularColor: [1, 1, 1, 1],
+                                specularExponent: 50
+                            };
+                        }
+                        else if (shaderName === "transparent_point_sprite"){
+                            defaultUniforms = {
+                                mainColor: [1, 1, 1, 1],
+                                mainTexture: engine.project.load(engine.project.ENGINE_TEXTURE_WHITE),
+                                pointSize: [50]
                             };
                         }
 
@@ -153,6 +174,8 @@ define(["./Util", "kick/mesh/MeshDataFactory", "kick/material/GLSLConstants", ".
                     "transparent_diffuse",
                     "unlit",
                     "unlit_vertex_color",
+                    "bumped_specular",
+                    "transparent_point_sprite",
                     "transparent_unlit"];
             if (url === "kickjs://shader/default/") {
                 url = "kickjs://shader/diffuse/";
@@ -190,6 +213,7 @@ define(["./Util", "kick/mesh/MeshDataFactory", "kick/material/GLSLConstants", ".
          *  <li><b>Black</b> Url: kickjs://texture/black/</li>
          *  <li><b>White</b> Url: kickjs://texture/white/<br></li>
          *  <li><b>Gray</b>  Url: kickjs://texture/gray/<br></li>
+         *  <li><b>Default normal</b>  Url: kickjs://texture/default\_normal/<br></li>
          *  <li><b>Checkerboard</b>  Url: kickjs://texture/checkerboard/<br></li>
          *  <li><b>KickJS logo</b>  Url: kickjs://texture/logo/<br></li>
          *  </ul>
@@ -220,6 +244,11 @@ define(["./Util", "kick/mesh/MeshDataFactory", "kick/material/GLSLConstants", ".
                     255,   255,   255, 255,
                     255,   255,   255, 255,
                     255,   255,   255, 255]);
+            } else if (uri.indexOf("kickjs://texture/default_normal/") === 0) {
+                data = new Uint8Array([127, 127, 255, 255,
+                    127,   127,   255, 255,
+                    127,   127,   255, 255,
+                    127,   127,   255, 255]);
             } else if (uri.indexOf("kickjs://texture/gray/") === 0) {
                 data = new Uint8Array([127, 127, 127, 255,
                     127,   127,   127, 255,

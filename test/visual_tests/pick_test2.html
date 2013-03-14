@@ -1,0 +1,108 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+        "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+    <title>Point light test</title>
+</head>
+<body>
+<a href="pickTest.html">Next</a><br>
+<h1>Point light test</h1>
+
+
+<canvas id="canvas" style="border: none;" width="500" height="500"></canvas> <br>
+<script src="pick_test2_project.js"></script>
+<script src="../../dependencies/require.js"></script>
+<script type="text/javascript">
+    var req = require.config({
+        baseUrl: 'js/lib',
+        paths: {
+            kick: '../../../../src/js/kick'
+        }
+    });
+
+    req(['kick'],
+            function (kick) {
+                var engine;
+
+                function SomeComponent() {
+                    var engine = kick.core.Engine.instance,
+                            mouseInput = engine.mouseInput,
+                            camera;
+                    this.activated = function () {
+                        camera = engine.activeScene.findComponentsOfType(kick.scene.Camera)[0];
+                    };
+
+                    this.update = function () {
+                        var objectPicked = function (pickResult) {
+//                            console.log("UV", pickResult.uv, "Normal", pickResult.normal, "distance", pickResult.distance, "point", pickResult.point);
+//                            console.log("Distance to origin: "+kick.math.Vec3.length(pickResult.point));
+                            console.log(pickResult.gameObject.name);
+                        };
+                        if (mouseInput.isButtonUp(0)) {
+                            camera.pickPoint(objectPicked, mouseInput.mousePosition[0], mouseInput.mousePosition[1]);
+                        }
+                    };
+                };
+
+                function RotatorComponent(){
+                    var thisObj = this,
+                            time,
+                            transform,
+                            vec3 = kick.math.Vec3,
+                            quat= kick.math.Quat,
+                            rotationSpeed = 0.0001,
+                            upDownSpeed = 0.0001,
+                            wheelSpeed = 0.0001,
+                            mouseRotationSpeed = 0.001,
+                            mouseInput,
+                            sphericalCoordinates = vec3.clone([20.2,0,0]); // radius, polar, elevation
+                    cartesianCoordinates = vec3.create();
+
+                    this.activated = function(){
+                        var gameObject = thisObj.gameObject,
+                                engine = kick.core.Engine.instance;
+                        transform = gameObject.transform;
+                        time = engine.time;
+                        mouseInput = engine.mouseInput;
+                        mouseInput.mouseWheelPreventDefaultAction = true;
+                    };
+
+                    var localRotate = quat.create();
+                    this.update = function(){
+
+                        sphericalCoordinates[1] += time.deltaTime*rotationSpeed;
+                        sphericalCoordinates[2] = Math.sin(time.time*upDownSpeed)*Math.PI*0.25;
+
+                        var wheelY = mouseInput.deltaWheel[1];
+                        if (wheelY){
+                            var delta = wheelY*wheelSpeed;
+                            sphericalCoordinates[0] *= 1+delta;
+                        }
+                        vec3.sphericalToCarterian(cartesianCoordinates, sphericalCoordinates);
+                        transform.position = cartesianCoordinates;
+                        transform.localRotation = quat.lookAt(localRotate, cartesianCoordinates,[0,0,0],[0,1,0]);
+                    };
+                }
+
+
+
+                function initKick() {
+                    engine = new kick.core.Engine('canvas',{
+                        enableDebugContext: true
+                    });
+
+                    engine.project.loadProject(pointProject, function(){
+                        var camera = engine.activeScene.findComponentsOfType(kick.scene.Camera)[0];
+                        camera.gameObject.addComponent(new RotatorComponent());
+                        camera.gameObject.addComponent(new SomeComponent());
+                    }, function(err){
+                        console.log(err);
+                        debugger;
+                    });
+
+                }
+                initKick() ;
+            });
+</script>
+</body>
+</html>

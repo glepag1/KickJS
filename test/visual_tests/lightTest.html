@@ -5,6 +5,7 @@
     <title>Light test</title>
 </head>
 <body onload="">
+<a href="materialDefaultUniforms.html">Next</a><br>
 <h1>Light test</h1>
 <button id="ambient" onclick="setLight(this);">Ambient light</button>
 <button id="ambient_directional" onclick="setLight(this);">Ambient+Directional light</button>
@@ -24,7 +25,7 @@
 <button onclick="setRotation(false,this);">No rotate</button><br>
 
 <canvas id="canvas" style="border: none;" width="500" height="500"></canvas> <br>
-<script src="../../src/js-dependencies/require.js"></script>
+<script src="../../dependencies/require.js"></script>
 <script type="text/javascript">
     var req = require.config({
         baseUrl: 'js/lib',
@@ -98,9 +99,9 @@
                     material.shader = engine.project.load(shader);
                     if (window.debugShader){
                         console.log("__________________vertexShaderSrc__________________");
-                        console.log(kick.material.Shader.getPrecompiledSource(engine,material.shader.vertexShaderSrc));
+                        console.log(kick.material.Shader.getPrecompiledSource(material.shader.vertexShaderSrc));
                         console.log("_________________fragmentShaderSrc_________________");
-                        console.log(kick.material.Shader.getPrecompiledSource(engine,material.shader.fragmentShaderSrc));
+                        console.log(kick.material.Shader.getPrecompiledSource(material.shader.fragmentShaderSrc));
                     }
                 }
 

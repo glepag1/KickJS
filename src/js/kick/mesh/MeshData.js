@@ -11,7 +11,7 @@ define(["kick/core/Constants", "kick/core/Util", "kick/core/ChunkData", "kick/ma
          * This is a pure data class with no WebGL dependency
          * @class MeshData
          * @namespace kick.mesh
-         * @param {Object} config
+         * @param {Object} [config]
          * @constructor
          */
         MeshData = function (config) {
@@ -21,6 +21,7 @@ define(["kick/core/Constants", "kick/core/Util", "kick/core/ChunkData", "kick/ma
                 _interleavedArray,
                 _interleavedArrayFormat,
                 _vertexAttrLength,
+                _usage = Constants.GL_STATIC_DRAW,
                 _meshType,
                 _name,
                 clearInterleavedData = function () {
@@ -63,7 +64,7 @@ define(["kick/core/Constants", "kick/core/Util", "kick/core/ChunkData", "kick/ma
                 /**
                  * @method createGetterSetter
                  * @private
-                 * @param {Number} type GL_FLOAT or GL_INT
+                 * @param {Number} type GL\_FLOAT or GL\_INT
                  * @param {string} name
                  */
                 createGetterSetter = function (type, name) {
@@ -109,11 +110,14 @@ define(["kick/core/Constants", "kick/core/Util", "kick/core/ChunkData", "kick/ma
                         k,
                         vertex = thisObj.vertex,
                         vertexLen = vertex ?  vertex.length / 3 : 0,
+                        vertexOffset = 0,
                         description = {},
                         dataArrayBuffer,
-                        vertexOffset,
+                        floatView,
+                        intView,
                         dataSrc,
                         dataSrcLen,
+                        SIZE_OF_FLOAT_OR_INT = 4,
                         addAttributes = function (name, size, type) {
                             var array = thisObj[name];
 
@@ -145,26 +149,34 @@ define(["kick/core/Constants", "kick/core/Util", "kick/core/ChunkData", "kick/ma
                     addAttributes("int4", 4, Constants.GL_INT);
 
                     // copy data into array
-                    dataArrayBuffer = new ArrayBuffer(length * vertexLen * 4);
+                    if (_interleavedArray && _interleavedArray.length == length * vertexLen * SIZE_OF_FLOAT_OR_INT){
+                        dataArrayBuffer = _interleavedArray;
+                    } else {
+                        dataArrayBuffer = new ArrayBuffer(length * vertexLen * SIZE_OF_FLOAT_OR_INT);
+                    }
+
+                    floatView = new Float32Array(dataArrayBuffer, 0);
+                    intView = new Int32Array(dataArrayBuffer, 0);
                     for (i = 0; i < vertexLen; i++) {
-                        vertexOffset = i * length * 4;
                         for (j = 0; j < names.length; j++) {
-                            if (types[j] === Constants.GL_FLOAT) {
-                                data = new Float32Array(dataArrayBuffer, vertexOffset);
-                            } else {
-                                data = new Int32Array(dataArrayBuffer, vertexOffset);
-                            }
                             dataSrc = vertexAttributes[j];
                             dataSrcLen = lengthOfVertexAttributes[j];
+
+                            if (types[j] === Constants.GL_FLOAT) {
+                                data = floatView;
+                            } else {
+                                data = intView;
+                            }
+
                             for (k = 0; k < dataSrcLen; k++) {
-                                data[k] = dataSrc[i * dataSrcLen + k];
-                                vertexOffset += 4;
+                                data[vertexOffset] = dataSrc[i * dataSrcLen + k];
+                                vertexOffset += 1;
                             }
                         }
                     }
                     _interleavedArray = dataArrayBuffer;
                     _interleavedArrayFormat = description;
-                    _vertexAttrLength = length * 4;
+                    _vertexAttrLength = length * SIZE_OF_FLOAT_OR_INT;
                 };
 
             /**
@@ -184,6 +196,7 @@ define(["kick/core/Constants", "kick/core/Util", "kick/core/ChunkData", "kick/ma
                 numberOfSubMeshes = subMeshes.length;
                 chunkData.setNumber(4, numberOfSubMeshes);
                 chunkData.setNumber(5, thisObj.vertexAttrLength);
+                chunkData.setNumber(6, thisObj.usage);
                 for (i = 0; i < numberOfSubMeshes; i++) {
                     chunkData.set(10 + i, subMeshes[i]);
                 }
@@ -208,11 +221,13 @@ define(["kick/core/Constants", "kick/core/Util", "kick/core/ChunkData", "kick/ma
                     thisObj.name = chunkData.getString(3);
                     numberOfSubMeshes = chunkData.getNumber(4);
                     thisObj.vertexAttrLength = chunkData.getNumber(5);
+                    thisObj.usage = chunkData.getNumber(6) || Constants.GL_STATIC_DRAW;
                     submeshes = [];
                     for (i = 0; i < numberOfSubMeshes; i++) {
                         submeshes[i] = chunkData.get(10 + i);
                     }
                     thisObj.subMeshes = submeshes;
+
                     return true;
                 }
                 return false;
@@ -231,7 +246,6 @@ define(["kick/core/Constants", "kick/core/Util", "kick/core/ChunkData", "kick/ma
                         var vertexLength,
                             aabb,
                             i,
-                            point,
                             vertex = thisObj.vertex;
                         if (!vertex) {
                             return null;
@@ -239,10 +253,28 @@ define(["kick/core/Constants", "kick/core/Util", "kick/core/ChunkData", "kick/ma
                         vertexLength = vertex.length;
                         aabb = Aabb.create();
                         for (i = 0; i < vertexLength; i += 3) {
-                            point = vertex.subarray(i, i + 3);
-                            Aabb.addPoint(aabb, aabb, point);
+                            Aabb.addPointIndexed(aabb, aabb, vertex, i);
                         }
                         return aabb;
+                    }
+                },
+                /**
+                 * Must be either GL_STATIC_DRAW, GL_DYNAMIC_DRAW or GL_STREAM_DRAW.
+                 * @property usage
+                 * @type Number
+                 * @default GL_STATIC_DRAW
+                 */
+                usage: {
+                    get: function () {
+                        return _usage;
+                    },
+                    set: function (newValue) {
+                        if (ASSERT) {
+                            if (newValue !== Constants.GL_STATIC_DRAW && newValue !== Constants.GL_DYNAMIC_DRAW && newValue !== Constants.GL_STREAM_DRAW) {
+                                Util.fail("MeshData.usage Must be either GL_STATIC_DRAW, GL_DYNAMIC_DRAW or GL_STREAM_DRAW");
+                            }
+                        }
+                        _usage = newValue;
                     }
                 },
                 /**
@@ -455,7 +487,7 @@ define(["kick/core/Constants", "kick/core/Util", "kick/core/ChunkData", "kick/ma
                     }
                 },
                 /**
-                 * indices (integer)
+                 * Indices (integer) - One index array for each submesh
                  * @property subMeshes
                  * @type Array_Array_Number
                  */
@@ -474,7 +506,7 @@ define(["kick/core/Constants", "kick/core/Util", "kick/core/ChunkData", "kick/ma
                     }
                 },
                 /**
-                 * Must be GL_TRIANGLES,GL_TRIANGLE_FAN, GL_TRIANGLE_STRIP, or GL_LINES
+                 * Must be GL\_TRIANGLES, GL\_TRIANGLE\_FAN, GL\_TRIANGLE\_STRIP, GL\_POINTS, or GL\_LINES
                  * @property meshType
                  * @type Number
                  */
@@ -487,8 +519,10 @@ define(["kick/core/Constants", "kick/core/Util", "kick/core/ChunkData", "kick/ma
                             if (newValue !== Constants.GL_LINES &&
                                     newValue !== Constants.GL_TRIANGLES &&
                                     newValue !== Constants.GL_TRIANGLE_FAN &&
-                                    newValue !== Constants.GL_TRIANGLE_STRIP) {
-                                Util.fail("MeshData.meshType must be GL_TRIANGLES, GL_TRIANGLE_FAN or GL_TRIANGLE_STRIP");
+                                    newValue !== Constants.GL_TRIANGLE_STRIP &&
+                                    newValue !== Constants.GL_POINTS
+                                ) {
+                                Util.fail("MeshData.meshType must be `GL_TRIANGLES, GL_TRIANGLE_FAN, GL_TRIANGLE_STRIP` or `GL_POINTS`");
                             }
                         }
                         _meshType = newValue;
@@ -667,7 +701,7 @@ define(["kick/core/Constants", "kick/core/Util", "kick/core/ChunkData", "kick/ma
                 }
                 thisObj.name = config.name;
                 thisObj.indices = config.indices;
-                thisObj.meshType = config.meshType || Constants.GL_TRIANGLES;
+                thisObj.meshType = Util.hasProperty(config,"meshType") ?  config.meshType : Constants.GL_TRIANGLES;
             }());
         };
 
@@ -693,7 +727,7 @@ define(["kick/core/Constants", "kick/core/Util", "kick/core/ChunkData", "kick/ma
         /**
          * Recalculate the angle weighted vertex normals based on the triangle mesh
          * @method recalculateNormals
-         * @return {Boolean} false if meshtype is not GL_TRIANGLES or GL_TRIANGLE_STRIP
+         * @return {Boolean} false if meshtype is not GL\_TRIANGLES or GL\_TRIANGLE\_STRIP
          */
         MeshData.prototype.recalculateNormals = function () {
             var vertexCount = this.vertex.length / 3,
@@ -739,7 +773,7 @@ define(["kick/core/Constants", "kick/core/Util", "kick/core/ChunkData", "kick/ma
                 weight1 = Math.acos(Math.max(-1, Math.min(1, Vec3.dot(v1v2, v1v3))));
                 Vec3.subtract(v2v3Alias, v3, v2);
                 Vec3.normalize(v2v3Alias, v2v3Alias);
-                weight2 = Math.PI - Math.max(-1, Math.min(1, Math.acos(Vec3.dot(v1v2, v2v3Alias))));
+                weight2 = Math.PI - Math.acos(Math.max(-1, Math.min(1, Vec3.dot(v1v2, v2v3Alias))));
                 Vec3.add(normalArray[i1], normalArray[i1], Vec3.scale(temp, normal, weight1));
                 Vec3.add(normalArray[i2], normalArray[i2], Vec3.scale(temp, normal, weight2));
                 Vec3.add(normalArray[i3], normalArray[i3], Vec3.scale(temp, normal, Math.PI - weight1 - weight2));
@@ -856,7 +890,7 @@ define(["kick/core/Constants", "kick/core/Util", "kick/core/ChunkData", "kick/ma
 
                 // Calculate handedness
                 // tangent[a].w = (Dot(Cross(n, t), tan2[a]) < 0.0F) ? -1.0F : 1.0F;
-                tangent[a][3] = (Vec3.dot(Vec3.cross(n, t, Vec3.create()), tan2[a]) < 0.0) ? -1.0 : 1.0;
+                tangent[a][3] = (Vec3.dot(Vec3.cross(Vec3.create(), n, t), tan2[a]) < 0.0) ? -1.0 : 1.0;
             }
             this.tangent = tangentBuffer;
             return true;

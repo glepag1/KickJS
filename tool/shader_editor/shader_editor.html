@@ -5,16 +5,18 @@
     <meta charset=UTF-8”>
     <title>Kick.js | Shader Editor</title>
 
-    <link rel="stylesheet" href="http://yui.yahooapis.com/combo?3.5.0/build/cssreset/reset-min.css&3.5.0/build/cssfonts/fonts-min.css&3.5.0/build/cssgrids/grids-min.css&3.5.0/build/cssbase/base-min.css&3.5.0/build/cssbutton/cssbutton.css">
-    <script src="http://yui.yahooapis.com/3.5.0/build/yui/yui-min.js"></script>
-    <script src="ace/ace.js" type="text/javascript" charset="utf-8"></script>
-    <script src="ace/theme-twilight.js" type="text/javascript" charset="utf-8"></script>
-    <script src="ace/mode-glsl_es.js" type="text/javascript" charset="utf-8"></script>
+    <link rel="stylesheet" href="http://yui.yahooapis.com/combo?3.8.1/build/cssreset/reset-min.css&3.8.1/build/cssfonts/fonts-min.css&3.8.1/build/cssgrids/grids-min.css&3.8.1/build/cssbase/base-min.css&3.8.1/build/cssbutton/cssbutton.css">
+    <script src="http://yui.yahooapis.com/3.8.1/build/yui/yui-min.js"></script>
+    <script src="http://d1n0x3qji82z53.cloudfront.net/src-min-noconflict/ace.js" type="text/javascript" charset="utf-8"></script>
 
     <style>
         #glslEditor {
             width: 65%;
             height: 80%;
+        }
+
+        .hiddenPanel {
+            display: none;
         }
 
         .yui3-panel {
@@ -50,21 +52,6 @@
             top:150px !important;
         }
     </style>
-
-    <!--<script type="text/javascript" src="../js/webgl-debug.js"></script>-->
-    <!--<script type="text/javascript" src="../js/kick-min-0.4.0.js"></script>-->
-    <script type="text/javascript">
-        if (location.search === "?debug"){
-            document.write('<script type="text/javascript" src="../js/webgl-debug.js"></s'+'cript>');
-            document.write('<script type="text/javascript" src="../js/kick-debug-0.4.2.js"></s'+'cript>');
-            document.write('<script type="text/javascript" src="exampleShaders.js"></s'+'cript>');
-        } else {
-            document.write('<script type="text/javascript" src="../js/kick-min-0.4.2.js"></s'+'cript>');
-        }
-    </script>
-    <script type="text/javascript" src="shader_editor_default.js"></script>
-    <script type="text/javascript" src="shader_editor.js"></script>
-    <script type="text/javascript" src="shader_editor_ui.js"></script>
     <link href='/style.css' rel='stylesheet' type='text/css'>
     <script type="text/javascript" src="../common/common.js"></script>
 </head>
@@ -197,25 +184,154 @@
                     </div>
                 </div>
                 <div id="settings"  class="sourceEditorPanel">
-                    <h3>Type of mesh</h3>
+                    <h3>Mesh</h3>
                     <div id="meshsetting">
-                        <input type="radio" name="mesh-settings" id="cube" value="cube"><label for="cube"> Cube</label></option><br>
-                        <input type="radio" name="mesh-settings" id="sphere" value="sphere" checked><label for="sphere"> Sphere</label></option><br>
-                        <input type="radio" name="mesh-settings" id="plane"  value="plane"><label for="plane"> Plane</label></option><br>
-                        <input type="radio" name="mesh-settings" id="teapot" value="teapot"><label for="teapot"> Teapot</label></option><br>
-                        <input type="radio" name="mesh-settings" id="head" value="head"><label for="head"> 3D head (Lee Perry-Smith)</label> (<a href="http://www.ir-ltd.net/infinite-3d-head-scan-released">Creative Commons Attribution 3.0 Unported License</a>)</option>
+                        <!--<input type="radio" name="mesh-settings" id="cube" value="cube"><label for="cube"> Cube</label></option><br>-->
+                        <!--<input type="radio" name="mesh-settings" id="sphere" value="sphere" checked><label for="sphere"> Sphere</label></option><br>-->
+                        <!--<input type="radio" name="mesh-settings" id="plane"  value="plane"><label for="plane"> Plane</label></option><br>-->
+                        <!--<input type="radio" name="mesh-settings" id="teapot" value="teapot"><label for="teapot"> Teapot</label></option><br>-->
+                        <!--<input type="radio" name="mesh-settings" id="head" value="head"><label for="head"> *) 3D head (Lee Perry-Smith)</label> (<a href="http://www.ir-ltd.net/infinite-3d-head-scan-released">Creative Commons Attribution 3.0 Unported License</a>)</option>-->
+
+                        <button class='radio' id="cube" value="cube" title="Cube" style="background-image: url('images/cube.png');background-position-x: 5px;background-position-y: 5px;width: 42px;height: 42px;background-repeat: no-repeat;"></button>
+                        <button class='radio' id="sphere" value="sphere" title="Sphere" style="background-image: url('images/sphere.png');background-position-x: 5px;background-position-y: 5px;width: 42px;height: 42px;background-repeat: no-repeat;"></button>
+                        <button class='radio' id="plane" value="plane" title="Plane" style="background-image: url('images/plane.png');background-position-x: 5px;background-position-y: 5px;width: 42px;height: 42px;background-repeat: no-repeat;"></button>
+                        <button class='radio' id="teapot" value="teapot" title="Teapot" style="background-image: url('images/teapot.png');background-position-x: 5px;background-position-y: 5px;width: 42px;height: 42px;background-repeat: no-repeat;"></button>
+                        <button class='radio' id="head" value="head" title="3D head (Lee Perry-Smith)" style="background-image: url('images/head.png');background-position-x: 5px;background-position-y: 5px;width: 42px;height: 42px;background-repeat: no-repeat;"></button>
+                        <button class='radio' id="points" value="points" title="Random points (inside the unit cube)" style="background-image: url('images/points.png');background-position-x: 5px;background-position-y: 5px;width: 42px;height: 42px;background-repeat: no-repeat;"></button>
                     </div>
 
                     <h3>Camera</h3>
                     <div id="projection">
-                        <input type="radio" name="camera-projection-perspective" id="orthogonale" value="orthogonale" checked><label for="orthogonale"> Orthogonale</label></option>
-                        <input type="radio" name="camera-projection-perspective" id="perspective" value="perspective"><label for="perspective"> Perspective</label></option>
+                        <button class='radio' id="perspective" value="perspective" title="Perspective camera" style="background-image: url('images/perspective.png');background-position-x: 5px;background-position-y: 5px;width: 42px;height: 42px;background-repeat: no-repeat;"></button>
+                        <button class='radio' id="orthogonale" value="orthogonale" title="Orthogonal camera" style="background-image: url('images/orthogonal.png');background-position-x: 5px;background-position-y: 5px;width: 42px;height: 42px;background-repeat: no-repeat;"></button>
                     </div>
-                    <h3>Rotate mesh</h3>
+                    <h3>Mesh movement</h3>
                     <div id="rotatemesh">
-                        <input type="radio" name="mesh-rotate-settings" id="rotateOff" value="off"><label for="rotateOff"> Off</label></option>
-                        <input type="radio" name="mesh-rotate-settings" id="rotateOn" value="on" checked><label for="rotateOn"> On</label></option>
+                        <button class='radio' id="rotateOn" value="on">Rotation</button>
+                        <button class='radio' id="rotateOff" value="off">Static</button>
                     </div>
+                    <h3>Blending</h3>
+                    <div id="blending">
+                        <button class='radio' id="blendingOff" value="off">Off</button>
+                        <button class='radio' id="blendingOn" value="on">On</button>
+                    </div>
+                    <div id="blendingoptions" style="margin-left: 20px;">
+                        <b>Blend options</b><br>
+                        <div style="margin-left: 20px;">
+                        <table>
+                            <tr>
+                                <th>Source factor RGB</th>
+                                <th>Source factor Alpha</th>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <select id="blendSFactorRGB">
+                                        <option>GL_ZERO</option>
+                                        <option>GL_ONE</option>
+                                        <option>GL_SRC_COLOR</option>
+                                        <option>GL_ONE_MINUS_SRC_COLOR</option>
+                                        <option>GL_DST_COLOR</option>
+                                        <option>GL_ONE_MINUS_DST_COLOR</option>
+                                        <option>GL_SRC_ALPHA</option>
+                                        <option>GL_ONE_MINUS_SRC_ALPHA</option>
+                                        <option>GL_DST_ALPHA</option>
+                                        <option>GL_ONE_MINUS_DST_ALPHA</option>
+                                        <option>GL_CONSTANT_COLOR</option>
+                                        <option>GL_ONE_MINUS_CONSTANT_COLOR</option>
+                                        <option>GL_CONSTANT_ALPHA</option>
+                                        <option>GL_ONE_MINUS_CONSTANT_ALPHA</option>
+                                        <option>GL_SRC_ALPHA_SATURATE</option>
+                                    </select>
+                                </td>
+                                <td><select id="blendSFactorAlpha">
+                                        <option>GL_ZERO</option>
+                                        <option>GL_ONE</option>
+                                        <option>GL_SRC_COLOR</option>
+                                        <option>GL_ONE_MINUS_SRC_COLOR</option>
+                                        <option>GL_DST_COLOR</option>
+                                        <option>GL_ONE_MINUS_DST_COLOR</option>
+                                        <option>GL_SRC_ALPHA</option>
+                                        <option>GL_ONE_MINUS_SRC_ALPHA</option>
+                                        <option>GL_DST_ALPHA</option>
+                                        <option>GL_ONE_MINUS_DST_ALPHA</option>
+                                        <option>GL_CONSTANT_COLOR</option>
+                                        <option>GL_ONE_MINUS_CONSTANT_COLOR</option>
+                                        <option>GL_CONSTANT_ALPHA</option>
+                                        <option>GL_ONE_MINUS_CONSTANT_ALPHA</option>
+                                        <option>GL_SRC_ALPHA_SATURATE</option>
+                                    </select>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Destination factor RGB</th>
+                                <th>Destination factor Alpha</th>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <select id="blendDFactorRGB">
+                                        <option>GL_ZERO</option>
+                                        <option>GL_ONE</option>
+                                        <option>GL_SRC_COLOR</option>
+                                        <option>GL_ONE_MINUS_SRC_COLOR</option>
+                                        <option>GL_DST_COLOR</option>
+                                        <option>GL_ONE_MINUS_DST_COLOR</option>
+                                        <option>GL_SRC_ALPHA</option>
+                                        <option>GL_ONE_MINUS_SRC_ALPHA</option>
+                                        <option>GL_DST_ALPHA</option>
+                                        <option>GL_ONE_MINUS_DST_ALPHA</option>
+                                        <option>GL_CONSTANT_COLOR</option>
+                                        <option>GL_ONE_MINUS_CONSTANT_COLOR</option>
+                                        <option>GL_CONSTANT_ALPHA</option>
+                                        <option>GL_ONE_MINUS_CONSTANT_ALPHA</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <select id="blendDFactorAlpha">
+                                        <option>GL_ZERO</option>
+                                        <option>GL_ONE</option>
+                                        <option>GL_SRC_COLOR</option>
+                                        <option>GL_ONE_MINUS_SRC_COLOR</option>
+                                        <option>GL_DST_COLOR</option>
+                                        <option>GL_ONE_MINUS_DST_COLOR</option>
+                                        <option>GL_SRC_ALPHA</option>
+                                        <option>GL_ONE_MINUS_SRC_ALPHA</option>
+                                        <option>GL_DST_ALPHA</option>
+                                        <option>GL_ONE_MINUS_DST_ALPHA</option>
+                                        <option>GL_CONSTANT_COLOR</option>
+                                        <option>GL_ONE_MINUS_CONSTANT_COLOR</option>
+                                        <option>GL_CONSTANT_ALPHA</option>
+                                        <option>GL_ONE_MINUS_CONSTANT_ALPHA</option>
+                                    </select>
+                                </td>
+                            </tr>
+                        </table>
+                        <button id="normalBlend" class='yui3-button' title="Set source + destination factor to normal blending">Set normal blend</button>
+                        <button id="additiveBlend" class='yui3-button' title="Set source + destination factor to additive blending">Set additive blend</button>
+                        </div>
+                    </div>
+                    <h3>Face culling</h3>
+                    <div id="faceculling">
+                        <button class='radio' id="facecullingBack" value="GL_BACK">Back</button>
+                        <button class='radio' id="facecullingFront" value="GL_FRONT">Front</button>
+                        <button class='radio' id="facecullingNone" value="GL_NONE">None</button>
+                    </div>
+                    <h3>Z test</h3>
+                    <div id="zTest">
+                        <button class='radio' id="zTestLess" value="GL_LESS">Less</button>
+                        <button class='radio' id="zTestEqual" value="GL_EQUAL">Equal</button>
+                        <button class='radio' id="zTestLEqual" value="GL_LEQUAL">Less than equal</button>
+                        <button class='radio' id="zTestGreater" value="GL_GREATER">Greater</button>
+                        <button class='radio' id="zTestNotEqual" value="GL_NOTEQUAL">Not equal</button>
+                        <button class='radio' id="zTestGEqual" value="GL_GEQUAL">Greater than equal</button>
+                        <button class='radio' id="zTestAlways" value="GL_ALWAYS">Always</button>
+                        <button class='radio' id="zTestNever" value="GL_NEVER">Never</button>
+                    </div>
+                    <h3>Depth mask</h3>
+                    <div id="depthMask">
+                        <button class='radio' id="depthMaskEnabled" value="true" title="Enable write to depth buffer">Enabled</button>
+                        <button class='radio' id="depthMaskDisabled" value="false" title="Disable write to depth buffer">Disabled</button>
+                    </div>
+
                     <h3>Directional Light</h3>
                     Rotation (<b title="default pointing towards negative z">Euler</b>):<br>
                     <div id="lightrot">
@@ -237,6 +353,8 @@
                         <input type="number" name="ambientLight_g" value="0.1" step=0.1>
                         <input type="number" name="ambientLight_b" value="0.1" step=0.1><br>
                     </div>
+                    <br/>
+                    *) 3D head (<a href="http://www.ir-ltd.net/infinite-3d-head-scan-released">Lee Perry-Smith</a>)</label> (<a href="http://www.ir-ltd.net/infinite-3d-head-scan-released">Creative Commons Attribution 3.0 Unported License</a>)
                 </div>
                 <div id="about"  class="sourceEditorPanel">
                     Shader name:<br>
@@ -288,5 +406,6 @@
             </div>
 </div>
 <script type="text/javascript" src="/header.js"></script>
+<script data-main="js/shader_editor.js" type="text/javascript" src="../../dependencies/require.js"></script>
 </body>
 </html>

@@ -1,14 +1,13 @@
 requirejs.config({
     baseUrl: '.',
     paths: {
-        kick: '../js/kick-debug'
+        kick: location.search === "?debug" ? '../../build/kick-debug': '../../build/kick'
     }
 });
 
 requirejs(['kick'],
     function (kick) {
         "use strict";
-
 
         var vec3 = kick.math.Vec3,
             quat = kick.math.Quat,
@@ -383,7 +382,7 @@ requirejs(['kick'],
 
         function initKick() {
             engine = new kick.core.Engine('canvas',{
-                enableDebugContext: false
+                enableDebugContext: location.search === "?debug" // debug enabled if query == debug
             });
             var cameraObject = engine.activeScene.createGameObject();
             cameraObject.name = "Camera";
@@ -393,6 +392,7 @@ requirejs(['kick'],
                 far:100000
             });
             cameraObject.addComponent(camera);
+            cameraObject.addComponent(new kick.components.FullWindow());
 
             cameraObject.addComponent(new RotatorComponent());
 

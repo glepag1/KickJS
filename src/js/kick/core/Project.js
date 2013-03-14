@@ -12,6 +12,9 @@ define(["./Constants", "./ResourceDescriptor", "kick/material/Shader", "./Util",
              *
              * All assets initialized should be registered in the project. This is done by calling Project.registerObject()
              * (Note for built-in kickjs assets, this happens automatically when the objects are constructed).
+             * @example
+             *      // load shader
+             *      var shader = engine.project.load(engine.project.ENGINE\_SHADER\_DIFFUSE);
              * @class Project
              * @namespace kick.core
              * @constructor
@@ -22,6 +25,14 @@ define(["./Constants", "./ResourceDescriptor", "kick/material/Shader", "./Util",
                     resourceCache = {},
                     thisObj = this,
                     _maxUID = 0,
+                    verifyMaxUID = function(){
+                        var uid;
+                        for (uid in resourceDescriptorsByUID){
+                            if (_maxUID < uid){
+                                Util.fail("MaxUID invalid");
+                            }
+                        }
+                    },
                     refreshResourceDescriptor = function (uid, filter) {
                         if (resourceDescriptorsByUID[uid] instanceof ResourceDescriptor) {
                             var liveObject = resourceCache[uid];
@@ -47,7 +58,7 @@ define(["./Constants", "./ResourceDescriptor", "kick/material/Shader", "./Util",
                             canvas,
                             shader,
                             ctx;
-                        if (uid <= Project.ENGINE_SHADER_DEFAULT && uid >= Project.ENGINE_SHADER___PICK_NORMAL) {
+                        if (uid <= Project.ENGINE_SHADER_DEFAULT && uid >= Project.ENGINE_SHADER_TRANSPARENT_POINT_SPRITE) {
                             switch (uid) {
                             case Project.ENGINE_SHADER_DEFAULT:
                                 url = "kickjs://shader/default/";
@@ -88,6 +99,12 @@ define(["./Constants", "./ResourceDescriptor", "kick/material/Shader", "./Util",
                             case Project.ENGINE_SHADER___ERROR:
                                 url = "kickjs://shader/__error/";
                                 break;
+                            case Project.ENGINE_SHADER_TRANSPARENT_POINT_SPRITE:
+                                url = "kickjs://shader/transparent_point_sprite/";
+                                break;
+                            case Project.ENGINE_SHADER_BUMPED_SPECULAR:
+                                url = "kickjs://shader/bumped_specular/";
+                                break;
                             default:
                                 if (ASSERT) {
                                     Util.fail("uid not mapped " + uid);
@@ -99,7 +116,7 @@ define(["./Constants", "./ResourceDescriptor", "kick/material/Shader", "./Util",
                                 name: getUrlAsResourceName(url),
                                 uid: uid
                             });
-                        } else if (uid <= Project.ENGINE_TEXTURE_BLACK && uid >= Project.ENGINE_TEXTURE_CUBEMAP_WHITE) {
+                        } else if (uid <= Project.ENGINE_TEXTURE_BLACK && uid >= Project.ENGINE_TEXTURE_DEFAULT_NORMAL) {
                             isCubemap = uid === Project.ENGINE_TEXTURE_CUBEMAP_WHITE;
                             switch (uid) {
                             case Project.ENGINE_TEXTURE_BLACK:
@@ -116,6 +133,9 @@ define(["./Constants", "./ResourceDescriptor", "kick/material/Shader", "./Util",
                                 break;
                             case Project.ENGINE_TEXTURE_CUBEMAP_WHITE:
                                 // do nothing
+                                break;
+                            case Project.ENGINE_TEXTURE_DEFAULT_NORMAL:
+                                url = "kickjs://texture/default_normal/";
                                 break;
                             default:
                                 if (ASSERT) {
@@ -157,7 +177,7 @@ define(["./Constants", "./ResourceDescriptor", "kick/material/Shader", "./Util",
                                     });
                             }
 
-                        } else if (uid <= Project.ENGINE_MESH_TRIANGLE && uid >= Project.ENGINE_MESH_CUBE) {
+                        } else if (uid <= Project.ENGINE_MESH_TRIANGLE && uid >= Project.ENGINE_MESH_POINT) {
                             switch (uid) {
                             case Project.ENGINE_MESH_TRIANGLE:
                                 url = "kickjs://mesh/triangle/";
@@ -170,6 +190,9 @@ define(["./Constants", "./ResourceDescriptor", "kick/material/Shader", "./Util",
                                 break;
                             case Project.ENGINE_MESH_CUBE:
                                 url = "kickjs://mesh/cube/";
+                                break;
+                            case Project.ENGINE_MESH_POINT:
+                                url = "kickjs://mesh/point/";
                                 break;
                             default:
                                 if (ASSERT) {
@@ -210,6 +233,9 @@ define(["./Constants", "./ResourceDescriptor", "kick/material/Shader", "./Util",
                         },
                         set: function (newValue) {
                             _maxUID = newValue;
+                            if (ASSERT){
+                                verifyMaxUID();
+                            }
                         }
                     },
                     /**
@@ -281,7 +307,7 @@ define(["./Constants", "./ResourceDescriptor", "kick/material/Shader", "./Util",
                  * @method loadProject
                  * @param {object} config
                  * @param {Function} onSuccess
-                 * @param {Function} onFail=null Optional
+                 * @param {Function} [onFail=null]
                  */
                 this.loadProject = function (config, onSuccess, onError) {
                     if (_maxUID > 0) {
@@ -439,6 +465,9 @@ define(["./Constants", "./ResourceDescriptor", "kick/material/Shader", "./Util",
                             }
                         }
                     }
+                    if (ASSERT){
+                        verifyMaxUID();
+                    }
                     return null;
                 };
 
@@ -464,6 +493,9 @@ define(["./Constants", "./ResourceDescriptor", "kick/material/Shader", "./Util",
                             config: {name: object.name} // will be generated on serialization
                         });
                     }
+                    if (ASSERT){
+                        verifyMaxUID();
+                    }
                 };
 
                 /**
@@ -478,6 +510,9 @@ define(["./Constants", "./ResourceDescriptor", "kick/material/Shader", "./Util",
                         if (resourceDescriptorsByUID.hasOwnProperty(uid)) {
                             refreshResourceDescriptor(uid, filter);
                         }
+                    }
+                    if (ASSERT){
+                        verifyMaxUID();
                     }
                 };
 
@@ -702,6 +737,18 @@ define(["./Constants", "./ResourceDescriptor", "kick/material/Shader", "./Util",
          */
         Project.ENGINE_SHADER___PICK_NORMAL = -112;
         /**
+         * @property ENGINE_SHADER_TRANSPARENT_POINT_SPRITE
+         * @type Number
+         * @static
+         */
+        Project.ENGINE_SHADER_TRANSPARENT_POINT_SPRITE = -113;
+        /**
+         * @property ENGINE_SHADER_BUMPED_SPECULAR
+         * @type Number
+         * @static
+         */
+        Project.ENGINE_SHADER_BUMPED_SPECULAR = -114;
+        /**
          * @property ENGINE_TEXTURE_BLACK
          * @type Number
          * @static
@@ -735,6 +782,13 @@ define(["./Constants", "./ResourceDescriptor", "kick/material/Shader", "./Util",
         Project.ENGINE_TEXTURE_CUBEMAP_WHITE = -204;
 
         /**
+         * @property ENGINE_TEXTURE_DEFAULT_NORMAL
+         * @type Number
+         * @static
+         */
+        Project.ENGINE_TEXTURE_DEFAULT_NORMAL = -205;
+
+        /**
          * @property ENGINE_MESH_TRIANGLE
          * @type Number
          * @static
@@ -763,7 +817,14 @@ define(["./Constants", "./ResourceDescriptor", "kick/material/Shader", "./Util",
         Project.ENGINE_MESH_CUBE = -303;
 
         /**
-         * Default material is using ENGINE_SHADER_UNLIT and is white
+         * @property ENGINE_MESH_CUBE
+         * @type Number
+         * @static
+         */
+        Project.ENGINE_MESH_POINT = -304;
+
+        /**
+         * Default material is using ENGINE\_SHADER\_UNLIT and is white
          * @property ENGINE_MATERIAL_DEFAULT
          * @type {Number}
          * @static

@@ -12,8 +12,30 @@ define(["kick/core/Constants"], function (constants) {
      * @namespace kick.core
      * @param {kick.core.Engine} engine
      */
-    return function () {
-        var thisObj = this;
+    return function (engine) {
+        var thisObj = this,
+            vertexArrayObjectExt = null,
+            standardDerivativesExt = null,
+            textureFloatExt = null,
+            textureFloatHalfExt = null,
+            depthTextureExt = null,
+            textureFilterAnisotropicExt = null,
+            reloadExtensions = function(){
+                vertexArrayObjectExt = engine.getGLExtension("OES_vertex_array_object");
+                standardDerivativesExt = engine.getGLExtension("OES_standard_derivatives");
+                textureFloatExt = engine.getGLExtension("OES_texture_float");
+                textureFloatHalfExt = engine.getGLExtension("OES_texture_half_float");
+                depthTextureExt = engine.getGLExtension("WEBGL_depth_texture");
+                textureFilterAnisotropicExt = engine.getGLExtension("EXT_texture_filter_anisotropic");
+            },
+            clearExtensions = function(){
+                vertexArrayObjectExt = null;
+                standardDerivativesExt = null;
+                textureFloatExt = null;
+                textureFloatHalfExt = null;
+                depthTextureExt = null;
+                textureFilterAnisotropicExt = null;
+            };
         /**
          * The current clear color
          * @property currentClearColor
@@ -52,8 +74,8 @@ define(["kick/core/Constants"], function (constants) {
         this.currentMaterial = null;
 
         /**
-         * Represent the state of CULL_FACE (enabled / disabled) and cullFace (). Values must be one of:
-         * GL_FRONT, GL_FRONT_AND_BACK, GL_BACK or GL_NONE. (If none CULL_FACE is disabled otherwise enabled)
+         * Represent the state of CULL\_FACE (enabled / disabled) and cullFace (). Values must be one of:
+         * GL\_FRONT, GL\_FRONT\_AND\_BACK, GL\_BACK or GL\_NONE. (If none CULL\_FACE is disabled otherwise enabled)
          * @property faceCulling
          * @type Number
          */
@@ -61,7 +83,7 @@ define(["kick/core/Constants"], function (constants) {
 
         /**
          * Represents the current depthFunc used. Must be one of the following values:
-         * GL_NEVER, GL_LESS, GL_EQUAL, GL_LEQUAL, GL_GREATER, GL_NOTEQUAL, GL_GEQUAL or GL_ALWAYS.
+         * GL\_NEVER, GL\_LESS, GL\_EQUAL, GL\_LEQUAL, GL\_GREATER, GL\_NOTEQUAL, GL\_GEQUAL or GL\_ALWAYS.
          * @property zTest
          * @type Number
          */
@@ -95,6 +117,87 @@ define(["kick/core/Constants"], function (constants) {
          */
         this.viewportSize = null;
 
+        Object.defineProperties(this, {
+            /**
+             * The OES\_vertex\_array\_object extension (if available)
+             * See http://www.khronos.org/registry/webgl/extensions/OES\_vertex\_array\_object/
+             * @property vertexArrayObjectExtension
+             * @type Object
+             * @final
+             */
+            vertexArrayObjectExtension:{
+                get: function(){
+                    return vertexArrayObjectExt;
+                },
+                enumerable:true
+            },
+            /**
+             * The OES\_standard\_derivatives extension (if available)
+             * See http://www.khronos.org/registry/webgl/extensions/OES\_standard\_derivatives/
+             * @property standardDerivativesExtension
+             * @type Object
+             * @final
+             */
+            standardDerivativesExtension:{
+                get: function(){
+                    return standardDerivativesExt;
+                },
+                enumerable:true
+            },
+            /**
+             * The OES\_texture\_float extension (if available)
+             * See http://www.khronos.org/registry/webgl/extensions/OES\_texture\_float/
+             * @property textureFloatExtension
+             * @type Object
+             * @final
+             */
+            textureFloatExtension:{
+                get: function(){
+                    return textureFloatExt;
+                },
+                enumerable:true
+            },
+            /**
+             * The OES\_texture\_half\_float extension (if available)
+             * See http://www.khronos.org/registry/webgl/extensions/OES\_texture\_half\_float/
+             * @property textureFloatHalfExtension
+             * @type Object
+             * @final
+             */
+            textureFloatHalfExtension:{
+                get: function(){
+                    return textureFloatHalfExt;
+                },
+                enumerable:true
+            },
+            /**
+             * The WEBGL\_depth\_texture extension (if available)
+             * See http://www.khronos.org/registry/webgl/extensions/WEBGL\_depth\_texture/
+             * @property depthTextureExtension
+             * @type Object
+             * @final
+             */
+            depthTextureExtension:{
+                get: function(){
+                    return depthTextureExt;
+                },
+                enumerable:true
+            },
+            /**
+             * The EXT\_texture\_filter\_anisotropic extension (if available)
+             * See http://www.khronos.org/registry/webgl/extensions/EXT\_texture\_filter\_anisotropic/
+             * @property textureFilterAnisotropicExtension
+             * @type Object
+             * @final
+             */
+            textureFilterAnisotropicExtension:{
+                get: function(){
+                    return textureFilterAnisotropicExt;
+                },
+                enumerable:true
+            }
+        });
+
         /**
          * Sets all properties to null
          * @method clear
@@ -108,6 +211,11 @@ define(["kick/core/Constants"], function (constants) {
             }
         };
 
+        engine.addContextListener({
+            contextLost: clearExtensions,
+            contextRestored: reloadExtensions
+        });
+        reloadExtensions();
         if (ASSERT) {
             Object.preventExtensions(this);
         }

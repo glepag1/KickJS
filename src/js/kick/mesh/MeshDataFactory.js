@@ -8,7 +8,22 @@ define(["./MeshData", "kick/math/Vec2", "kick/math/Vec3", "kick/core/Constants",
      * @static
      */
     return {
-
+        /**
+         * Create a single point (in 0,0,0)
+         * @method createPointData
+         * @static
+         * @return {kick.core.MeshData} point mesh
+         */
+        createPointData: function () {
+            return new MeshData({
+                name: "Point",
+                vertex: [
+                    0, 0, 0
+                ],
+                meshType: Constants.GL_POINTS,
+                indices: [0]
+            });
+        },
         /**
          * Creates a triangle in the XY plane
          * @method createTriangleData
@@ -90,7 +105,7 @@ define(["./MeshData", "kick/math/Vec2", "kick/math/Vec3", "kick/core/Constants",
                 radius = 1;
             }
             var j, i,
-                vertexCount = stacks * (slices + 1) * 2 + 2 * (stacks - 1), // degenerate vertex info
+                vertexCount = (stacks+1) * (slices + 1),
                 normalsMemory = {},
                 normals = Vec3.array(vertexCount, normalsMemory),
                 verticesMemory = {},

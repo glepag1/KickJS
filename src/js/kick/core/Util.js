@@ -24,7 +24,9 @@ define(["require", "./Constants", "./EngineSingleton"], function (require, Const
         deserializeConfig: function (config, scene) {
             var i,
                 engine = EngineSingleton.engine,
-                destArray;
+                destArray,
+                ref,
+                reftype;
             if (typeof config === 'number') {
                 return config;
             }
@@ -35,11 +37,18 @@ define(["require", "./Constants", "./EngineSingleton"], function (require, Const
                 }
                 config = destArray;
             } else if (config) {
-                if (config && config.ref && config.reftype) {
-                    if (config.reftype === "project") {
-                        config = engine.project.load(config.ref);
-                    } else if (config.reftype === "gameobject" || config.reftype === "component") {
-                        config = scene.getObjectByUID(config.ref);
+                ref = config.ref;
+                reftype = config.reftype;
+                if (reftype) {
+                    if (reftype === "project") {
+                        config = engine.project.load(ref);
+                    } else if (reftype === "gameobject" || reftype === "component") {
+                        config = scene.getObjectByUID(ref);
+                    } else if (DEBUG) {
+                        Util.warn("Unsupported ref type. Expected 'project', 'gameobject' or 'component'");
+                    }
+                    if (DEBUG && !config){
+                        Util.warn("Unable to find "+reftype+" ref "+ref);
                     }
                 }
             }
@@ -118,7 +127,7 @@ define(["require", "./Constants", "./EngineSingleton"], function (require, Const
          *
          * @method toCamelCase
          * @param {String} str
-         * @param {String} wordSeparator="" Optional - default value is empty string
+         * @param {String} [wordSeparator=""]
          */
         toCamelCase: function (str, wordSeparator) {
             if (!wordSeparator) {
@@ -395,7 +404,7 @@ define(["require", "./Constants", "./EngineSingleton"], function (require, Const
          * @method insertSorted
          * @param {Object} element
          * @param {Array} sortedArray
-         * @param {Function} sortFunc=kick.core.Util.numberSortFunction has the signature foo(obj1,obj2) returns Number. Optional (uses numberSort as default)
+         * @param {Function} [sortFunc=kick.core.Util.numberSortFunction] has the signature foo(obj1,obj2) returns Number.
          */
         insertSorted : function (element,sortedArray,sortFunc) {
             var i;
@@ -619,7 +628,7 @@ define(["require", "./Constants", "./EngineSingleton"], function (require, Const
          * @static
          * @method convertToTriangleIndices
          * @param {Array} indices index array
-         * @param {Number} primitiveType such as Constants.GL_TRIANGLES or Constants.GL_TRIANGLE_STRIP
+         * @param {Number} primitiveType such as Constants.GL\_TRIANGLES or Constants.GL\_TRIANGLE\_STRIP
          * @param {Boolean} removeDegenerate remove degenerate triangles
          * @return {Array|null} triangleIndices or null if not possible to convert
          */

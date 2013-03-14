@@ -13,7 +13,7 @@ define(["kick/core/ProjectAsset", "kick/core/Constants", "kick/core/Util", "kick
          * @class Texture
          * @namespace kick.texture
          * @constructor
-         * @param {Object} config Optional
+         * @param {Object} [config]
          * @extends kick.core.ProjectAsset
          */
         return function (config) {
@@ -118,7 +118,7 @@ define(["kick/core/ProjectAsset", "kick/core/Constants", "kick/core/Util", "kick
             };
 
             /**
-             * Deallocates the texture from memory
+             * Deallocate the texture from memory
              * @method destroy
              */
             this.destroy = function () {
@@ -135,7 +135,7 @@ define(["kick/core/ProjectAsset", "kick/core/Constants", "kick/core/Util", "kick
             /**
              * Set texture image based on a image object.<br>
              * The image is automatically resized nearest power of two<br>
-             * When a textureType == TEXTURE_CUBE_MAP the image needs to be in the following format:
+             * When a textureType == TEXTURE\_CUBE\_MAP the image needs to be in the following format:
              * <ul>
              *     <li>width = 6*height</li>
              *     <li>Image needs to be ordered: [Right, Left, Top, Bottom, Front, Back] (As in <a href="http://www.cgtextures.com/content.php?action=tutorial&name=cubemaps">NVidia DDS Exporter</a>)</li>
@@ -203,8 +203,10 @@ define(["kick/core/ProjectAsset", "kick/core/Constants", "kick/core/Util", "kick
 
             /**
              * Calling this function has the side effect of enabling floating point texture (in available on platform)
+             * Use GLState.depthTextureExtension instead
              * @method isFPTexturesSupported
              * @return {Boolean}
+             * @deprecated
              */
             this.isFPTexturesSupported = function () {
                 var res = gl.isTexFloatEnabled;
@@ -217,21 +219,21 @@ define(["kick/core/ProjectAsset", "kick/core/Constants", "kick/core/Util", "kick
 
             /**
              * Set a image using a raw bytearray in a specified format.
-             * GL_FLOAT should only be used if floating point textures is supported (See Texture.isFPTexturesSupported() ).
+             * GL\_FLOAT / GL\_HALF\_FLOAT\_OES should only be used if extension is supported (See GLState.textureFloatExtension / GLState.textureFloatHalfExtension).
+             * If only one of GL\_FLOAT/GL\_HALF\_FLOAT\_OES is supported, then the engine will silently use the supported type.
              * If used on cubemap-texture then all 6 sides of the cube is assigned
              * @method setImageData
              * @param {Number} width image width in pixels
              * @param {Number} height image height in pixels
              * @param {Number} border image border in pixels
-             * @param {Object} type GL_FLOAT, GL_UNSIGNED_BYTE, GL_UNSIGNED_SHORT_4_4_4_4, GL_UNSIGNED_SHORT_5_5_5_1 or GL_UNSIGNED_SHORT_5_6_5
+             * @param {Object} type GL\_FLOAT, GL\_HALF_FLOAT_OES, GL\_UNSIGNED_BYTE, GL\_UNSIGNED_SHORT\_4\_4\_4\_4, GL\_UNSIGNED\_SHORT\_5\_5\_5\_1 or GL\_UNSIGNED\_SHORT\_5\_6\_5
              * @param {Array} pixels array of pixels (may be null)
              * @param {String} dataURI String representing the image
              */
             this.setImageData = function (width, height, border, type, pixels, dataURI) {
                 createImageFunction = thisObj.setImageData;
                 createImageFunctionParameters = arguments;
-                var res,
-                    i,
+                var i,
                     textureSides = _textureType === Constants.GL_TEXTURE_2D ?
                             [Constants.GL_TEXTURE_2D] :
                             [Constants.GL_TEXTURE_CUBE_MAP_POSITIVE_X,
@@ -241,11 +243,24 @@ define(["kick/core/ProjectAsset", "kick/core/Constants", "kick/core/Util", "kick
                                 Constants.GL_TEXTURE_CUBE_MAP_POSITIVE_Z,
                                 Constants.GL_TEXTURE_CUBE_MAP_NEGATIVE_Z];
                 recreateTextureIfDifferentType();
-                if (type === Constants.GL_FLOAT && !gl.isTexFloatEnabled) {
-                    res = thisObj.isFPTexturesSupported(); // enable extension
-                    if (!res) {
-                        Util.fail("OES_texture_float unsupported on the platform. Using GL_UNSIGNED_BYTE instead of GL_FLOAT.");
-                        type = Constants.GL_UNSIGNED_BYTE;
+                if (type === Constants.GL_FLOAT) {
+                    if (!glState.depthTextureExtension) {
+                        if (glState.textureFloatHalfExtension) {
+                            type = Constants.GL_HALF_FLOAT_OES;
+                        } else {
+                            Util.fail("OES_texture_float unsupported on the platform. Using GL_UNSIGNED_BYTE instead of GL_FLOAT.");
+                            type = Constants.GL_UNSIGNED_BYTE;
+                        }
+                    }
+                }
+                if (type === Constants.GL_HALF_FLOAT_OES){
+                    if (!glState.textureFloatHalfExtension) {
+                        if (glState.depthTextureExtension) {
+                            type = Constants.GL_FLOAT;
+                        } else {
+                            Util.fail("OES_texture_half_float unsupported on the platform. Using GL_UNSIGNED_BYTE instead of GL_HALF_FLOAT_OES.");
+                            type = Constants.GL_UNSIGNED_BYTE;
+                        }
                     }
                 }
                 if (Constants._ASSERT) {
@@ -287,13 +302,13 @@ define(["kick/core/ProjectAsset", "kick/core/Constants", "kick/core/Util", "kick
              * @method setTemporaryTexture
              */
             this.setTemporaryTexture = function () {
-                var blackWhiteCheckerboard = new Uint8Array([255, 255, 255,
+                var whiteImage = new Uint8Array([255, 255, 255,
                         255, 255, 255,
                         255, 255, 255,
                         255, 255, 255]),
                     oldIntFormat = _intFormat;
-                _intFormat = Constants.GL_RGB;
-                this.setImageData(2, 2, 0, Constants.GL_UNSIGNED_BYTE, blackWhiteCheckerboard, "kickjs://texture/white/");
+                this.internalFormat = Constants.GL_RGB;
+                this.setImageData(2, 2, 0, Constants.GL_UNSIGNED_BYTE, whiteImage, "kickjs://texture/white/");
                 _intFormat = oldIntFormat;
             };
 
@@ -368,10 +383,10 @@ define(["kick/core/ProjectAsset", "kick/core/Constants", "kick/core/Util", "kick
                     }
                 },
                 /**
-                 * Texture.wrapS should be either GL_CLAMP_TO_EDGE or GL_REPEAT<br>
-                 * Default: GL_REPEAT
+                 * Texture.wrapS should be either GL\_CLAMP\_TO\_EDGE or GL\_REPEAT<br>
                  * @property wrapS
                  * @type Object
+                 * @default GL_REPEAT
                  */
                 wrapS: {
                     get: function () {
@@ -387,10 +402,10 @@ define(["kick/core/ProjectAsset", "kick/core/Constants", "kick/core/Util", "kick
                     }
                 },
                 /**
-                 * Texture.wrapT should be either GL_CLAMP_TO_EDGE or GL_REPEAT<br>
-                 * Default: GL_REPEAT
+                 * Texture.wrapT should be either GL\_CLAMP\_TO\_EDGE or GL\_REPEAT<br>
                  * @property wrapT
                  * @type Object
+                 * @default GL_REPEAT
                  */
                 wrapT: {
                     get: function () {
@@ -406,11 +421,11 @@ define(["kick/core/ProjectAsset", "kick/core/Constants", "kick/core/Util", "kick
                     }
                 },
                 /**
-                 * Texture.minFilter should be either GL_NEAREST, GL_LINEAR, GL_NEAREST_MIPMAP_NEAREST, <br>
-                 * GL_LINEAR_MIPMAP_NEAREST, GL_NEAREST_MIPMAP_LINEAR, GL_LINEAR_MIPMAP_LINEAR<br>
-                 * Default: GL_LINEAR
+                 * Texture.minFilter should be either GL\_NEAREST, GL\_LINEAR, GL\_NEAREST\_MIPMAP\_NEAREST, <br>
+                 * GL\_LINEAR\_MIPMAP\_NEAREST, GL\_NEAREST\_MIPMAP\_LINEAR, GL\_LINEAR\_MIPMAP\_LINEAR<br>
                  * @property minFilter
                  * @type Object
+                 * @default GL_LINEAR
                  */
                 minFilter: {
                     get: function () {
@@ -431,10 +446,10 @@ define(["kick/core/ProjectAsset", "kick/core/Constants", "kick/core/Util", "kick
                     }
                 },
                 /**
-                 * Texture.magFilter should be either GL_NEAREST or GL_LINEAR. <br>
-                 * Default: GL_LINEAR
+                 * Texture.magFilter should be either GL\_NEAREST or GL\_LINEAR. <br>
                  * @property magFilter
                  * @type Object
+                 * @default GL_LINEAR
                  */
                 magFilter: {
                     get: function () {
@@ -451,10 +466,10 @@ define(["kick/core/ProjectAsset", "kick/core/Constants", "kick/core/Util", "kick
                 },
                 /**
                  * Autogenerate mipmap levels<br>
-                 * (Default true).
                  * When an existing texture (without mipmaps) has generateMipmaps=true, then mipmaps are created instantly.
                  * @property generateMipmaps
                  * @type Boolean
+                 * @default true
                  */
                 generateMipmaps: {
                     get: function () {
@@ -475,10 +490,11 @@ define(["kick/core/ProjectAsset", "kick/core/Constants", "kick/core/Util", "kick
                 },
                 /**
                  * When importing image flip the Y direction of the image
-                 * (Default true).<br>
+                 * <br>
                  * This property is ignored for cube maps.
                  * @property flipY
                  * @type Boolean
+                 * @default true
                  */
                 flipY: {
                     get: function () {
@@ -495,15 +511,15 @@ define(["kick/core/ProjectAsset", "kick/core/Constants", "kick/core/Util", "kick
                 },
                 /**
                  * Specifies the internal format of the image (format on GPU)<br>
-                 * Default is GL_RGBA<br>
                  * Must be one of the following:
-                 * GL_ALPHA,
-                 * GL_RGB,
-                 * GL_RGBA,
-                 * GL_LUMINANCE,
-                 * GL_LUMINANCE_ALPHA
+                 * GL\_ALPHA,
+                 * GL\_RGB,
+                 * GL\_RGBA,
+                 * GL\_LUMINANCE,
+                 * GL\_LUMINANCE_ALPHA
                  * @property internalFormat
                  * @type Number
+                 * @default GL_RGBA
                  */
                 internalFormat: {
                     get: function () {
@@ -522,12 +538,13 @@ define(["kick/core/ProjectAsset", "kick/core/Constants", "kick/core/Util", "kick
                 },
                 /**
                  * Specifies the texture type<br>
-                 * Default is GL_TEXTURE_2D<br>
+                 * Default is GL\_TEXTURE_2D<br>
                  * Must be one of the following:
-                 * GL_TEXTURE_2D,
-                 * GL_TEXTURE_CUBE_MAP
+                 * GL\_TEXTURE_2D,
+                 * GL\_TEXTURE_CUBE_MAP
                  * @property textureType
                  * @type Number
+                 * @default GL_TEXTURE_2D
                  */
                 textureType: {
                     get: function () {

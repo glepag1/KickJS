@@ -5,6 +5,9 @@ yuidoc_bin=$1
 #Location of project
 project=$2
 
+cp -R $project/src/js-extra $project/build/kickextra
+
+
 #Location of Google Clojure Compiler (http://code.google.com/p/closure-compiler/)
 googleClojure=$3
 
@@ -13,8 +16,6 @@ nodejs=$4
 
 #Location of Rhino (js.jar) (http://www.mozilla.org/rhino/)
 rhino=$5
-
-version=0_5_0
 
 # The location of the files to parse.  Parses subdirectories, but will fail if
 # there are duplicate file names in these directories.  You can specify multiple
@@ -29,7 +30,7 @@ parser_out=$project/API/parser
 generator_out=$project/API/generator
 
 # The version of your project to display within the documentation.
-version=0.5.0
+version=0.5.2
 
 # The version of YUI the project is using.  This effects the output for
 # YUI configuration attributes.  This should start with '2' or '3'.
@@ -45,19 +46,19 @@ rm -rf $generator_out
 
 ##############################################################################
 echo "Include GLSL files as constants"
-$nodejs $project/preprocessor/include_glsl_files $project/src/glsl/ $project/src/js/kick/material/glslconstants.js
+$nodejs $project/dependencies/build/include_glsl_files $project/src/glsl/ $project/src/js/kick/material/glslconstants.js
 
 ##############################################################################
 echo "Running Precompiler dev"
 mkdir $project/build
 rm -rf $project/build/pre
 mkdir $project/build/pre
-$nodejs $project/preprocessor/preprocessor $project/src/js $project/build/pre $version true true
+echo $nodejs $project/dependencies/build/preprocessor $project/src/js $project/build/pre true true
+$nodejs $project/dependencies/build/preprocessor $project/src/js $project/build/pre true true
 
 echo "Package AMD and compress (debug)"
 
-java -classpath $rhino:$googleClojure org.mozilla.javascript.tools.shell.Main $project/preprocessor/r.js -o name=kick out=$project/build/kick-debug.js.tmp baseUrl=$project/build/pre optimize=none
-
+java -classpath $rhino:$googleClojure org.mozilla.javascript.tools.shell.Main $project/dependencies/build/r.js -o name=kick out=$project/build/kick-debug.js.tmp baseUrl=$project/build/pre optimize=none
 
 ##############################################################################
 echo "Generating documentation (YUI Doc)"
@@ -72,41 +73,31 @@ $yuidoc_bin -c $project/yuidoc.json . -o $generator_out
 ##############################################################################
 echo "Zipping Documentation (YUI Doc)"
 cd $project/API
-mv generator API_$version
+mv generator API_
 rm $project/KickJS-doc.zip
-zip -r ../KickJS-doc.zip API_$version
-mv API_$version generator
+zip -r ../KickJS-doc.zip API_
+mv API_ generator
 
 ##############################################################################
 echo "Running Precompiler release"
 mkdir $project/build
 rm -rf $project/build/pre
 mkdir $project/build/pre
-$nodejs $project/preprocessor/preprocessor $project/src/js $project/build/pre $version false false
+$nodejs $project/dependencies/build/preprocessor $project/src/js $project/build/pre false false
 
 echo "Package AMD and compress (release)"
 
-java -classpath $rhino:$googleClojure org.mozilla.javascript.tools.shell.Main $project/preprocessor/r.js -o name=kick out=$project/build/kick.js.tmp baseUrl=$project/build/pre
+java -classpath $rhino:$googleClojure org.mozilla.javascript.tools.shell.Main $project/dependencies/build/r.js -o name=kick out=$project/build/kick.js.tmp baseUrl=$project/build/pre
+
+
 
 ##############################################################################
 echo "Adding license info compiler"
-cat "$project/license_min.txt" "$project/build/kick-debug.js.tmp" > "$project/build/kick-debug.js"
-cat "$project/license_min.txt" "$project/build/kick.js.tmp" > "$project/build/kick.js"
+cat "$project/dependencies/build/license_min.txt" "$project/build/kick-debug.js.tmp" > "$project/build/kick-debug.js"
+cat "$project/dependencies/build/license_min.txt" "$project/build/kick.js.tmp" > "$project/build/kick.js"
+
 rm "$project/build/kick-debug.js.tmp"
 rm "$project/build/kick.js.tmp"
-
-##############################################################################
-echo "Copy kickjs to examples"
-mkdir "$project/example/js/"
-echo "$project/build/kick.js"
-echo "$project/example/js/kick.js"
-cp "$project/build/kick.js" "$project/example/js/kick.js"
-cp "$project/build/kick-debug.js" "$project/example/js/kick-debug.js"
-mkdir "$project/tool/js/"
-cp "$project/build/kick.js" "$project/tool/js/kick.js"
-cp "$project/build/kick-debug.js" "$project/tool/js/kick-debug.js"
-cp "$project/build/kick.js" "$project/test/tutorial/kick.js"
-cp "$project/build/kick-debug.js" "$project/test/tutorial/kick-debug.js"
 
 echo "Build finished"
 date

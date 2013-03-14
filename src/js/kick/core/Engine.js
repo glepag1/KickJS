@@ -24,7 +24,6 @@ define(["require", "./GLState", "./Project", "./Constants", "./ResourceLoader", 
          *                  function (kick) {
          *                      // init engine (create 3d context)
          *                      var engine = new kick.core.Engine('3dCanvas');
-         *                      console.log("Engine loaded. KickJS "+engine.version);
          *                  }
          *          );
          *      </script>
@@ -35,12 +34,12 @@ define(["require", "./GLState", "./Project", "./Constants", "./ResourceLoader", 
          * @param {kick.core.Config} config={} Configuration object
          */
         var engine = function (idOrElement, config) {
-            var glState = new GLState(),
+            var glState,
                 gl = null,
                 canvas = typeof idOrElement === 'string' ? document.getElementById(idOrElement) : idOrElement,
                 webGlContextNames = ["experimental-webgl", "webgl"],
                 thisObj = this,
-                lastTime = new Date().getTime() - 16, // ensures valid delta time in next frame
+                lastTime = Date.now() - 16, // ensures valid delta time in next frame
                 deltaTime = 0,
                 timeObj = new Time(),
                 timeSinceStart = 0,
@@ -218,7 +217,7 @@ define(["require", "./GLState", "./Project", "./Constants", "./ResourceLoader", 
                                 window.cancelAnimationFrame(animationFrameObj);
                                 animationFrameObj = null;
                             } else {
-                                lastTime = new Date().getTime() - 16; // ensures valid delta time in next frame
+                                lastTime = Date.now() - 16; // ensures valid delta time in next frame
                                 animationFrameObj = window.requestAnimationFrame(wrapperFunctionToMethodOnObject, thisObj.canvas);
                             }
                         }
@@ -232,6 +231,26 @@ define(["require", "./GLState", "./Project", "./Constants", "./ResourceLoader", 
              */
             this.isFullScreenSupported = function () {
                 return canvas.requestFullscreen || canvas.webkitRequestFullScreen || canvas.mozRequestFullScreen;
+            };
+
+            /**
+             * Query WebGL for a specific extension. If found, the extension object is returned.
+             * "WEBKIT\_", "MOZ\_" vendor prefixes are used.
+             * @method getGLExtension
+             * @param {String} extensionName
+             * @return Object|null
+             */
+            this.getGLExtension = function (extensionName) {
+                var vendorPrefixes = ["", "WEBKIT_", "MOZ_"],
+                    i,
+                    ext;
+                for(i = 0;i < vendorPrefixes.length; i++) {
+                    ext = gl.getExtension(vendorPrefixes[i] + extensionName);
+                    if (ext) {
+                        return ext;
+                    }
+                }
+                return null;
             };
 
             /**
@@ -429,6 +448,7 @@ define(["require", "./GLState", "./Project", "./Constants", "./ResourceLoader", 
                                 console.log("webgl-debug.js not included - cannot find WebGLDebugUtils");
                             }
                         }
+                        glState = new GLState(thisObj);
                         Object.freeze(gl);
                         gl.enable(c.GL_DEPTH_TEST);
                         gl.enable(c.GL_SCISSOR_TEST);
@@ -442,7 +462,7 @@ define(["require", "./GLState", "./Project", "./Constants", "./ResourceLoader", 
                     thisObj.config.webglNotFoundFn(canvas);
                     return;
                 }
-
+                console.log("KickJS "+thisObj.version);
                 canvas.addEventListener("webglcontextlost", function (event) {
                     wasPaused = thisObj.paused;
                     thisObj.paused = true;
@@ -518,7 +538,7 @@ define(["require", "./GLState", "./Project", "./Constants", "./ResourceLoader", 
                     return engineInstance;
                 }
             }
-        })
+        });
         return engine;
     }
     );
