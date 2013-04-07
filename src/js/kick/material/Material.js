@@ -1,5 +1,5 @@
-define(["kick/core/ProjectAsset", "kick/core/Util", "kick/core/Constants", "./Shader", "./MaterialUniform", "kick/core/EngineSingleton"],
-    function (ProjectAsset, Util, Constants, Shader, MaterialUniform, EngineSingleton) {
+define(["kick/core/ProjectAsset", "kick/core/Util", "kick/core/Constants", "./Shader", "./MaterialUniform", "kick/core/EngineSingleton", "kick/core/Observable"],
+    function (ProjectAsset, Util, Constants, Shader, MaterialUniform, EngineSingleton, Observable) {
         "use strict";
 
         /**
@@ -35,29 +35,21 @@ define(["kick/core/ProjectAsset", "kick/core/Util", "kick/core/Constants", "./Sh
                 _name = "Material",
                 _shader = null,
                 _uniforms = [],
-                shaderChangeListeners = [],
                 thisObj = this,
                 gl = engine.gl,
                 _renderOrder = 0,
-                contextListener = {
-                    contextLost: function () {
-                    },
-                    contextRestored: function (newGL) {
-                        gl = newGL;
-                        // force shader update (will re-initialize uniforms)
-                        if (_shader) {
-                            _shader.contextRestored(newGL);
-                            var s = _shader;
-                            _shader = null;
-                            thisObj.shader = s;
-                        }
+                contextRestored= function (newGL) {
+                    gl = newGL;
+                    // force shader update (will re-initialize uniforms)
+                    if (_shader) {
+                        _shader.contextRestored(newGL);
+                        var s = _shader;
+                        _shader = null;
+                        thisObj.shader = s;
                     }
                 },
                 notifyShaderChange = function(){
-                    var i;
-                    for (i = 0; i < shaderChangeListeners.length; i++) {
-                        shaderChangeListeners[i](thisObj);
-                    }
+                    thisObj.fireEvent('shaderChanged', _shader);
                 },
                 /**
                  * Called when a shader is set or changed.
@@ -97,6 +89,16 @@ define(["kick/core/ProjectAsset", "kick/core/Util", "kick/core/Constants", "./Sh
                     }
                 };
 
+            Observable.call(this, [
+            /**
+             * Fired when shader is changed (set to a new instance)
+             * @event shaderChanged
+             * @param {kick.material.Shader} shaderInstance
+             */
+                "shaderChanged"
+            ]
+            );
+
             Object.defineProperties(this, {
                 /**
                  * @property engine
@@ -127,13 +129,13 @@ define(["kick/core/ProjectAsset", "kick/core/Util", "kick/core/Constants", "./Sh
                         }
                         if (_shader !== newValue) {
                             if (_shader) {
-                                _shader.removeListener(decorateUniforms);
+                                _shader.removeEventListener("shaderUpdated", decorateUniforms);
                             }
                             _shader = newValue;
                             if (_shader) {
                                 _renderOrder = _shader.renderOrder;
                                 decorateUniforms();
-                                _shader.addListener(decorateUniforms);
+                                _shader.addEventListener("shaderUpdated", decorateUniforms);
                             }
                         }
                     }
@@ -162,6 +164,7 @@ define(["kick/core/ProjectAsset", "kick/core/Util", "kick/core/Constants", "./Sh
              * Listener is notified whenever shader is changed
              * @method addShaderChangeListeners
              * @param {Function} listenerFn
+             * @deprecated
              */
             this.addShaderChangeListener = function (listenerFn) {
                 if (ASSERT) {
@@ -169,12 +172,16 @@ define(["kick/core/ProjectAsset", "kick/core/Util", "kick/core/Constants", "./Sh
                         Util.warn("Material.addShaderChangeListener: listenerFn not function");
                     }
                 }
-                shaderChangeListeners.push(listenerFn);
+
+                Util.fail("Use addEventListener('shaderChanged', listenerFn) instead");
+
+                thisObj.addEventListener("shaderChanged", listenerFn);
             };
 
             /**
              * @method removeShaderChangeListener
              * @param {Function} listenerFn
+             * @deprecated
              */
             this.removeShaderChangeListener = function (listenerFn) {
                 if (ASSERT) {
@@ -182,7 +189,9 @@ define(["kick/core/ProjectAsset", "kick/core/Util", "kick/core/Constants", "./Sh
                         Util.warn("Material.removeShaderChangeListener: listenerFn not function");
                     }
                 }
-                Util.removeElementFromArray(shaderChangeListeners, listenerFn, true);
+                Util.fail("Use removeEventListener('shaderChanged', listenerFn) instead");
+
+                thisObj.removeEventListener("shaderChanged", listenerFn);
             };
 
             /**
@@ -304,7 +313,7 @@ define(["kick/core/ProjectAsset", "kick/core/Util", "kick/core/Constants", "./Sh
             this.destroy = function () {
                 thisObj.shader = null;
                 engine.project.removeResourceDescriptor(thisObj.uid);
-                engine.removeContextListener(contextListener);
+                engine.removeEventListener('contextRestored', contextRestored);
             };
 
             /**
@@ -336,7 +345,7 @@ define(["kick/core/ProjectAsset", "kick/core/Util", "kick/core/Constants", "./Sh
                         name: conf.name,
                         shader: conf.shader
                     };
-                engine.addContextListener(contextListener);
+                engine.addEventListener('contextRestored', contextRestored);
                 Util.applyConfig(thisObj, configCopy, ["uid"]);
                 if (!_shader || !_shader.isValid()) {
                     if (conf.shader) {

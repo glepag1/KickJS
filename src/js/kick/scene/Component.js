@@ -18,7 +18,9 @@ define([], function () {
      * Abstract method called when a component is added to scene. May be undefined. <br>
      * This method method works in many cases like a constructor function, where references to other game objects can
      * be looked up (this cannot be done when the actual constructor function is called, since the scene may not be
-     * loaded completely).
+     * loaded completely).<br>
+     * Note that activated are called just after update methods on all components has been called - this makes it easier
+     * to get references to other components.
      * @method activated
      */
 
@@ -50,8 +52,9 @@ define([], function () {
 
     /**
      * Default value is 1000<br>
-     * &lt; 2000 default geometry<br>
-     * 2000 - 2999 transparent geometry (sorted back-to-front when rendered)<br>
+     * &lt; 1999 default geometry<br>
+     * 1999 skybox<br>
+     * 2001 - 2999 transparent geometry (sorted back-to-front when rendered)<br>
      * &gt; 3000 overlay geometry rendered on top
      * @property renderOrder
      * @type Number
@@ -63,8 +66,16 @@ define([], function () {
      */
 
     /**
+     * Fire events when components are updated.
+     * May be undefined.
+     * Must be defined before adding to gameObject.
+     * @event componentUpdated
+     * @param {kick.scene.Component} component
+     */
+
+    /**
      * Creates a JSON version of the configuration of the class. May be undefined, if so the
-     * kick.core.Util.componentToJSON() are used for serializaing of the component.<br>
+     * kick.core.Util.componentToJSON() are used for serializing of the component.<br>
      * Note that references to assets, gameObjects or other components should be wrapped by the kick.core.Util.getJSONReference() method
      * @method toJSON
      * @return {Object}

@@ -1,14 +1,16 @@
 define(["kick/core", "kick/math", "kick/scene"], function (core, math, scene) {
     "use strict";
-        var DEGREE_TO_RADIAN = core.Constants._DEGREE_TO_RADIAN;
+        var DEGREE_TO_RADIAN = core.Constants._DEGREE_TO_RADIAN,
+            Util = core.Util;
         /**
          * A simple walker class which can be added to a camera to navigate in a scene.
          * @class FPSWalker
          * @constructor
          * @extends kick.scene.Component
          * @namespace kick.components
+         * @param {Object} config
          */
-        return function(){
+        return function(config){
             var engine,
                 transform,
                 keyInput,
@@ -23,7 +25,10 @@ define(["kick/core", "kick/math", "kick/scene"], function (core, math, scene) {
                 strideLeft = "A".charCodeAt(0),
                 strideRight = "D".charCodeAt(0),
                 thisObj = this,
-                camera;
+                camera,
+                updateCameraObject = function () {
+                    camera = thisObj.gameObject.getComponentOfType(scene.Camera);
+                };
 
             /**
              * Default behavior is to rotate view whenever mouse in being pressed. The rotation around X axis is clamped
@@ -127,18 +132,27 @@ define(["kick/core", "kick/math", "kick/scene"], function (core, math, scene) {
                 mouseInput = engine.mouseInput;
                 time = engine.time;
                 position = transform.position;
-                camera = thisObj.gameObject.getComponentOfType(scene.Camera);
-                if (!camera){
-                    core.Util.fail("Camera not found");
-                }
+                updateCameraObject();
+                thisObj.gameObject.addEventListener("componentAdded", updateCameraObject);
+                thisObj.gameObject.addEventListener("componentRemoved", updateCameraObject);
+            };
+
+            /**
+             * @method deactivated
+             */
+            this.deactivated = function(){
+                thisObj.gameObject.removeEventListener("componentAdded", updateCameraObject);
+                thisObj.gameObject.removeEventListener("componentRemoved", updateCameraObject);
             };
 
             /**
              * @method update
              */
             this.update = function(){
-                this.rotateObject();
-                this.moveObject();
+                if (camera){
+                    this.rotateObject();
+                    this.moveObject();
+                }
             };
 
             /**
@@ -146,11 +160,21 @@ define(["kick/core", "kick/math", "kick/scene"], function (core, math, scene) {
              * @method getGroundHeight
              * @param {Number} x
              * @param {Number} z
-             * @returns {number}
+             * @return {number}
              */
             this.getGroundHeight = function(x,z){
                 return 0;
             };
+
+            /**
+             * @method toJSON
+             * @return {JSON}
+             */
+            this.toJSON = function () {
+                return Util.componentToJSON(this, "kick.components.FPSWalker");
+            };
+
+            Util.applyConfig(this, config);
         };
     }
 );

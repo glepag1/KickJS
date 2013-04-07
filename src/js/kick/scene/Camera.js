@@ -12,6 +12,20 @@ define(["kick/core/Constants", "kick/core/Util", "kick/math/Quat", "kick/math/Ma
 
         /**
          * Creates a game camera
+         * @example
+         *     // create a game object in [0,0,0] facing down the -z axis
+         *     var cameraObject = engine.activeScene.createGameObject();
+         *     cameraObject.transform.position = [0,0,5];
+         *     // create a orthographic camera
+         *     var camera = new kick.scene.Camera({
+         *          perspective: false,
+         *          left:-5,
+         *          right:5,
+         *          top:5,
+         *          bottom:-5
+         *     });
+         *     cameraObject.addComponent(camera);
+         *
          * @class Camera
          * @namespace kick.scene
          * @extends kick.scene.Component
@@ -60,13 +74,11 @@ define(["kick/core/Constants", "kick/core/Util", "kick/math/Quat", "kick/math/Ma
                     currentCameraTransform: null
                 }),
                 isContextListenerRegistered = false,
-                contextListener = {
-                    contextLost: function () {
-                        gl = null;
-                    },
-                    contextRestored: function (newGL) {
-                        gl = newGL;
-                    }
+                contextLost = function () {
+                    gl = null;
+                },
+                contextRestored = function (newGL) {
+                    gl = newGL;
                 },
                 renderableComponentsBackGroundAndGeometry = [],
                 renderableComponentsTransparent = [],
@@ -239,64 +251,80 @@ define(["kick/core/Constants", "kick/core/Util", "kick/math/Quat", "kick/math/Ma
 
                     renderSceneObjects(sceneLightObj, _shadowmapMaterial);
                 },
-                componentListener = {
-                    /**
-                     * Add components that implements the render function and match the camera layerMask to cameras renderable components
-                     * @method componentsAdded
-                     * @param {Array_kick.scene.Component} components
-                     * @private
-                     */
-                    componentsAdded : function (components) {
-                        var i,
-                            component,
-                            renderOrder,
-                            array;
-                        for (i = components.length - 1; i >= 0; i--) {
-                            component = components[i];
-                            if (typeof (component.render) === "function" && (component.gameObject.layer & _layerMask)) {
-                                renderOrder = component.renderOrder || 1000;
-                                if (renderOrder < 2000) {
-                                    array = renderableComponentsBackGroundAndGeometry;
-                                } else if (renderOrder >= 3000) {
-                                    array = renderableComponentsOverlay;
-                                } else {
-                                    array = renderableComponentsTransparent;
-                                }
-                                if (!Util.contains(array, component)) {
-                                    Util.insertSorted(component, array, compareRenderOrder);
-                                }
-                            }
-                        }
-                    },
 
-                    /**
-                     * @method componentsRemoved
-                     * @param {Array_kick.scene.Component} components
-                     * @return {Boolean}
-                     * @private
-                     */
-                    componentsRemoved : function (components) {
-                        var removed = false,
-                            i,
-                            j,
-                            component;
-                        for (i = components.length - 1; i >= 0; i--) {
-                            component = components[i];
-                            if (typeof (component.render) === "function") {
-                                for (j = renderableComponentsArray.length - 1; j >= 0; j--) {
-                                    removed |= Util.removeElementFromArray(renderableComponentsArray[j], component);
-                                }
-                            }
+                /**
+                 * Add components that implements the render function and match the camera layerMask to cameras renderable components
+                 * @method componentAdded
+                 * @param {kick.scene.Component} component
+                 * @private
+                 */
+                componentAdded = function (component) {
+                    var renderOrder,
+                        array;
+
+                    if (typeof (component.render) === "function" && (component.gameObject.layer & _layerMask)) {
+                        renderOrder = component.renderOrder || 1000;
+                        if (renderOrder < 2000) {
+                            array = renderableComponentsBackGroundAndGeometry;
+                        } else if (renderOrder >= 3000) {
+                            array = renderableComponentsOverlay;
+                        } else {
+                            array = renderableComponentsTransparent;
                         }
-                        return removed;
-                    },
-                    componentUpdated : function (component) {
-                        var wrap = [component],
-                            isRemoved = componentListener.componentsRemoved(wrap);
-                        if (isRemoved) { // only add if component also removed
-                            componentListener.componentsAdded(wrap);
+                        if (!Util.contains(array, component)) {
+                            Util.insertSorted(component, array, compareRenderOrder);
+                            if (component.componentUpdated) {
+                                component.addEventListener('componentUpdated', componentUpdated);
+                            }
                         }
                     }
+                },
+
+                /**
+                 * @method componentRemoved
+                 * @param {kick.scene.Component} component
+                 * @return {Boolean}
+                 * @private
+                 */
+                componentRemoved = function (component) {
+                    var removed = false,
+                        j;
+                    if (typeof (component.render) === "function") {
+                        for (j = renderableComponentsArray.length - 1; j >= 0; j--) {
+                            removed |= Util.removeElementFromArray(renderableComponentsArray[j], component);
+                        }
+                    }
+                    if (removed) {
+                        if (component.componentUpdated){
+                            component.removeEventListener('componentUpdated', componentUpdated);
+                        }
+                    }
+                    return removed;
+                },
+                componentUpdated = function (component) {
+                    componentRemoved(component);
+                    componentAdded(component);
+                },
+                initShadowMap = function(){
+                    var shadowRadius,
+                        nearPlanePosition,
+                        _shadowmapShader,
+                        materialConfig;
+
+                    _shadowmapShader = engine.project.load(engine.project.ENGINE_SHADER___SHADOWMAP);
+                    materialConfig = {
+                        name: "Shadow map material",
+                        shader: _shadowmapShader
+                    };
+                    _shadowmapMaterial = new Material(materialConfig);
+
+                    // calculate the shadow projection based on engine.config parameters
+                    shadowLightOffsetFromCamera = engine.config.shadowDistance * 0.5; // first find radius
+                    shadowRadius = shadowLightOffsetFromCamera * 1.55377397403004; // sqrt(2+sqrt(2))
+                    nearPlanePosition = -shadowRadius * engine.config.shadowNearMultiplier;
+                    shadowLightProjection = Mat4.create();
+                    Mat4.ortho(shadowLightProjection, -shadowRadius, shadowRadius, -shadowRadius, shadowRadius,
+                        nearPlanePosition, shadowRadius);
                 };
 
             /**
@@ -331,6 +359,8 @@ define(["kick/core/Constants", "kick/core/Util", "kick/math/Quat", "kick/math/Ma
              * @param {function} gameObjectPickedFn callback function with the signature function(gameObject, hitCount)
              * @param {Number} x coordinate in screen coordinates (between 0 and canvas width - 1)
              * @param {Number} y coordinate in screen coordinates (between 0 and canvas height - 1)
+             * @param {Number} [width=1]
+             * @param {Number} [height=1]
              */
             this.pick = function (gameObjectPickedFn, x, y, width, height) {
                 width = width || 1;
@@ -398,37 +428,32 @@ define(["kick/core/Constants", "kick/core/Util", "kick/math/Quat", "kick/math/Ma
              */
             this.activated = function () {
                 var gameObject = this.gameObject,
-                    shadowRadius,
-                    nearPlanePosition,
-                    _shadowmapShader,
-                    materialConfig;
+                    componentsWithRender,
+                    i;
                 engineUniforms.currentCameraTransform = gameObject.transform;
                 if (!isContextListenerRegistered) {
                     isContextListenerRegistered = true;
-                    engine.addContextListener(contextListener);
+                    engine.addEventListener('contextLost', contextLost);
+                    engine.addEventListener('contextRestored', contextRestored);
                 }
                 transform = gameObject.transform;
                 gl = engine.gl;
                 glState = engine.glState;
                 _scene = gameObject.scene;
-                _scene.addComponentListener(componentListener);
+                renderableComponentsBackGroundAndGeometry.length = 0;
+                renderableComponentsTransparent.length = 0;
+                renderableComponentsOverlay.length = 0;
+                _scene.addEventListener('componentAdded', componentAdded);
+                _scene.addEventListener('componentRemoved', componentRemoved);
+                // add current components in scene
+                componentsWithRender = _scene.findComponentsWithMethod("render");
+                for (i = 0; i < componentsWithRender.length; i++) {
+                    componentAdded(componentsWithRender[i]);
+                }
 
+                // init shadowmap
                 if (engine.config.shadows) {
-                    _shadowmapShader = engine.project.load(engine.project.ENGINE_SHADER___SHADOWMAP);
-                    materialConfig = {
-                        name: "Shadow map material",
-                        shader: _shadowmapShader
-                    };
-                    _shadowmapMaterial = new Material(materialConfig);
-
-                    // calculate the shadow projection based on engine.config parameters
-                    shadowLightOffsetFromCamera = engine.config.shadowDistance * 0.5; // first find radius
-                    shadowRadius = shadowLightOffsetFromCamera * 1.55377397403004; // sqrt(2+sqrt(2))
-                    nearPlanePosition = -shadowRadius * engine.config.shadowNearMultiplier;
-                    shadowLightProjection = Mat4.create();
-                    Mat4.ortho(shadowLightProjection, -shadowRadius, shadowRadius, -shadowRadius, shadowRadius,
-                        nearPlanePosition, shadowRadius);
-
+                    initShadowMap();
                 } else if (_renderShadow) {
                     _renderShadow = false; // disable render shadow
                     if (ASSERT) {
@@ -690,6 +715,7 @@ define(["kick/core/Constants", "kick/core/Util", "kick/math/Quat", "kick/math/Ma
                  * Cameras with lowest number is rendered first.
                  * @property cameraIndex
                  * @type Number
+                 * @default 1
                  */
                 cameraIndex: {
                     get: function () {
@@ -803,7 +829,8 @@ define(["kick/core/Constants", "kick/core/Util", "kick/math/Quat", "kick/math/Ma
             this.destroy = function () {
                 if (isContextListenerRegistered) {
                     isContextListenerRegistered = false;
-                    engine.removeContextListener(contextListener);
+                    engine.removeEventListener('contextLost', contextLost);
+                    engine.removeEventListener('contextRestored', contextRestored);
                 }
             };
 

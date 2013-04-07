@@ -1,5 +1,5 @@
-define(["require", "kick/core/ProjectAsset", "./SceneLights", "kick/core/Constants", "kick/core/Util", "./Camera", "./Light", "./GameObject", "./ComponentChangedListener", "kick/core/EngineSingleton"],
-    function (require, ProjectAsset, SceneLights, Constants, Util, Camera, Light, GameObject, ComponentChangedListener, EngineSingleton) {
+define(["require", "kick/core/ProjectAsset", "./SceneLights", "kick/core/Constants", "kick/core/Util", "./Camera", "./Light", "./GameObject", "kick/core/EngineSingleton", "kick/core/Observable"],
+    function (require, ProjectAsset, SceneLights, Constants, Util, Camera, Light, GameObject, EngineSingleton, Observable) {
         "use strict";
 
         var DEBUG = Constants._DEBUG,
@@ -31,14 +31,11 @@ define(["require", "kick/core/ProjectAsset", "./SceneLights", "kick/core/Constan
                 updateableComponents = [],
                 componentsNew = [],
                 componentsDelete = [],
-                componentListenes = [],
                 componentsAll = [],
                 cameras = [],
                 renderableComponents = [],
                 sceneLightObj = new SceneLights(engine.config.maxNumerOfLights),
                 _name = "Scene",
-                gl,
-                i,
                 thisObj = this,
                 addLight = function (light) {
                     if (light.type === Light.TYPE_AMBIENT) {
@@ -117,9 +114,7 @@ define(["require", "kick/core/ProjectAsset", "./SceneLights", "kick/core/Constan
                             } else if (component instanceof Light) {
                                 addLight(component);
                             }
-                        }
-                        for (i = componentListenes.length - 1; i >= 0; i--) {
-                            componentListenes[i].componentsAdded(componentsNewCopy);
+                            thisObj.fireEvent("componentAdded", component);
                         }
                     }
                 },/**
@@ -154,19 +149,34 @@ define(["require", "kick/core/ProjectAsset", "./SceneLights", "kick/core/Constan
                             } else if (component instanceof Light) {
                                 removeLight(component);
                             }
+                            thisObj.fireEvent("componentRemoved", component);
                         }
-                        for (i = componentListenes.length - 1; i >= 0; i--) {
-                            componentListenes[i].componentsRemoved(componentsDeleteCopy);
+                    }
+                },
+                insertAndRemoveComponents = function () {
+                    var count = 0;
+                    while (gameObjectsDelete.length ||
+                            componentsDelete.length ||
+                            gameObjectsNew.length ||
+                            componentsNew.length) {
+                        cleanupGameObjects();
+                        addNewGameObjects();
+                        if (ASSERT) {
+                            count++;
+                            if (count > 10) {
+                                Util.fail("Recursion detected in Component.activated or Component.deactivated.");
+                                return;
+                            }
                         }
                     }
                 },
                 updateComponents = function () {
-                    cleanupGameObjects();
-                    addNewGameObjects();
+                    insertAndRemoveComponents();
                     var i;
                     for (i = updateableComponents.length - 1; i >= 0; i--) {
                         updateableComponents[i].update();
                     }
+                    insertAndRemoveComponents();
                 },
                 renderComponents = function () {
                     var i;
@@ -175,23 +185,46 @@ define(["require", "kick/core/ProjectAsset", "./SceneLights", "kick/core/Constan
                     }
                     engine.gl.flush();
                 },
+                componentAddedListener = function (component) {
+                    Util.insertSorted(component, componentsNew, sortByScriptPriority);
+                    var uid = engine.getUID(component);
+                    if (ASSERT) {
+                        if (objectsById[uid]) {
+                            Util.fail("Component with uid " + uid + " already exist");
+                        }
+                    }
+                    objectsById[uid] = component;
+                },
+                componentRemovedListener = function (component) {
+                    Util.removeElementFromArray(componentsNew, component);
+                    componentsDelete.push(component);
+                    delete objectsById[component.uid];
+                },
                 createGameObjectPrivate = function (config) {
                     var gameObject = new GameObject(thisObj, config);
                     gameObjectsNew.push(gameObject);
                     gameObjects.push(gameObject);
                     objectsById[gameObject.uid] = gameObject;
+                    gameObject.addEventListener("componentAdded", componentAddedListener);
+                    gameObject.addEventListener("componentRemoved", componentRemovedListener);
                     return gameObject;
                 };
 
+            Observable.call(this, [
             /**
-             * @method notifyComponentUpdated
-             * @param component {kick.scene.Component}
+             * Fired when a new component is added to scene
+             * @event componentAdded
+             * @param {kick.scene.Component} component
              */
-            this.notifyComponentUpdated = function (component) {
-                for (i = componentListenes.length - 1; i >= 0; i--) {
-                    componentListenes[i].componentUpdated(component);
-                }
-            };
+                "componentAdded",
+            /**
+             * Fired when a new component is removed from scene
+             * @event componentRemoved
+             * @param {kick.scene.Component} component
+             */
+                "componentRemoved"
+            ]
+            );
 
             /**
              * @method destroy
@@ -201,30 +234,6 @@ define(["require", "kick/core/ProjectAsset", "./SceneLights", "kick/core/Constan
                 if (thisObj === engine.activeScene) {
                     engine.activeScene = null;
                 }
-            };
-
-            /**
-             * Add a component listener to the scene. A component listener should contain two functions:
-             * {componentsAdded(components) and componentsRemoved(components)}.
-             * Throws an exception if the two required functions does not exist.
-             * @method addComponentListener
-             * @param {kick.scene.ComponentChangedListener} componentListener
-             */
-            this.addComponentListener = function (componentListener) {
-                if (!ComponentChangedListener.isComponentListener(componentListener)) {
-                    Util.fail("Component listener does not have the correct interface. " +
-                        "It should contain the two functions: " +
-                        "componentsAdded(components) and componentsRemoved(components)");
-                }
-                if (!componentListener.componentUpdated) {
-                    componentListener.componentUpdated = function () {};
-                    if (DEBUG) {
-                        Util.warn("componentListener has no componentUpdated method");
-                    }
-                }
-                componentListenes.push(componentListener);
-                // add current components to component listener
-                componentListener.componentsAdded(componentsAll);
             };
 
             /**
@@ -254,32 +263,29 @@ define(["require", "kick/core/ProjectAsset", "./SceneLights", "kick/core/Constan
             };
 
             /**
-             * Removes a component change listener from the scene
-             * @method removeComponentListener
-             * @param {kick.scene.ComponentChangedListener} componentListener
+             * Search the scene for components of the specified type in the scene. Note that this
+             * method is slow - do not run in the the update function.
+             * @method findComponentsWithMethod
+             * @param {string} methodName
+             * @return {Array_kick.scene.Component} components
              */
-            this.removeComponentListener = function (componentListener) {
-                Util.removeElementFromArray(componentListenes, componentListener);
-            };
-
-            /**
-             * Should only be called by GameObject when a component is added. If the component is updateable (implements
-             * update method) the components is added to the current list of updateable components after the update loop
-             * (so it will not recieve any update invocations in the current frame).
-             * If the component is renderable (implements), is it added to the renderer's components
-             * @method addComponent
-             * @param {kick.scene.Component} component
-             * @protected
-             */
-            this.addComponent = function (component) {
-                Util.insertSorted(component, componentsNew, sortByScriptPriority);
-                var uid = engine.getUID(component);
+            this.findComponentsWithMethod = function (methodName) {
                 if (ASSERT) {
-                    if (objectsById[uid]) {
-                        Util.fail("Component with uid " + uid + " already exist");
+                    if (typeof methodName !== 'string') {
+                        Util.fail("Scene.findComponentsWithMethod expects a string");
                     }
                 }
-                objectsById[uid] = component;
+                var res = [],
+                    i,
+                    j,
+                    component;
+                for (i = gameObjects.length - 1; i >= 0; i--) {
+                    component = gameObjects[i].getComponentsWithMethod(methodName);
+                    for (j = 0; j < component.length; j++) {
+                        res.push(component[j]);
+                    }
+                }
+                return res;
             };
 
             /**
@@ -292,7 +298,7 @@ define(["require", "kick/core/ProjectAsset", "./SceneLights", "kick/core/Constan
             };
 
             /**
-             * Returns a gameobject identified by name
+             * Returns a GameObject identified by name
              * @method getGameObjectByName
              * @param {String} name
              * @return {kick.scene.GameObject} GameObject or undefined if not found
@@ -306,17 +312,6 @@ define(["require", "kick/core/ProjectAsset", "./SceneLights", "kick/core/Constan
                         return gameObject;
                     }
                 }
-            };
-
-
-            /**
-             * @method removeComponent
-             * @param {kick.scene} component
-             */
-            this.removeComponent = function (component) {
-                Util.removeElementFromArray(componentsNew, component);
-                componentsDelete.push(component);
-                delete objectsById[component.uid];
             };
 
             Object.defineProperties(this, {
@@ -520,12 +515,12 @@ define(["require", "kick/core/ProjectAsset", "./SceneLights", "kick/core/Constan
         /**
          * Create empty scene with camera
          * @method createDefault
-         * @param {kick.core.Engine} engine
          * @static
          * @return {kick.scene.Scene}
          */
-        Scene.createDefault = function (engine) {
-            var newScene = new Scene(engine),
+        Scene.createDefault = function () {
+            var engine = EngineSingleton.engine,
+                newScene = new Scene(),
                 gameObject = newScene.createGameObject();
             gameObject.addComponent(new Camera());
             return newScene;

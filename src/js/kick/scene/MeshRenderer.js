@@ -1,5 +1,5 @@
-define(["kick/core/Constants", "kick/material/Material", "kick/core/Util", "kick/mesh/Mesh", "kick/core/EngineSingleton"],
-    function (Constants, Material, Util, Mesh, EngineSingleton) {
+define(["kick/core/Constants", "kick/material/Material", "kick/core/Util", "kick/mesh/Mesh", "kick/core/EngineSingleton", "kick/core/Observable"],
+    function (Constants, Material, Util, Mesh, EngineSingleton, Observable) {
         "use strict";
 
         var ASSERT = Constants._ASSERT;
@@ -26,13 +26,18 @@ define(["kick/core/Constants", "kick/material/Material", "kick/core/Util", "kick
                 updateRenderOrder = function() {
                     if (_materials.length > 0 && _renderOrder !== _materials[0].renderOrder){
                         _renderOrder = _materials[0].renderOrder;
-                        if (thisObj.gameObject) {
-                            thisObj.gameObject.notifyComponentUpdated(thisObj);
-                            return true;
-                        }
+                        thisObj.fireEvent("componentUpdated", this);
                     }
-                    return false;
                 };
+
+            Observable.call(this,
+                /**
+                 * Fired when mesh is updated
+                 * @event contextLost
+                 * @param {kick.scene.Component} component
+                 */
+                ["componentUpdated"]
+            );
 
             /**
              * If no materials are assigned, the ENGINE\_MATERIAL\_DEFAULT is assigned as material.
@@ -82,14 +87,12 @@ define(["kick/core/Constants", "kick/material/Material", "kick/core/Util", "kick
                             }
                         }
                         if (_materials.length > 0){
-                            _materials[0].removeShaderChangeListener(updateRenderOrder);
+                            _materials[0].removeEventListener("shaderChanged", updateRenderOrder);
                         }
                         _materials[0] = newValue;
-                        _materials[0].addShaderChangeListener(updateRenderOrder);
+                        _materials[0].addEventListener("shaderChanged", updateRenderOrder);
                         _renderOrder = _materials[0].renderOrder;
-                        if (thisObj.gameObject) {
-                            thisObj.gameObject.notifyComponentUpdated(thisObj);
-                        }
+                        thisObj.fireEvent("componentUpdated", this);
                     }
                 },
                 /**
@@ -104,7 +107,7 @@ define(["kick/core/Constants", "kick/material/Material", "kick/core/Util", "kick
                     set: function (newValue) {
                         var i;
                         for (i = 0;i < _materials.length; i++){
-                            _materials[i].removeShaderChangeListener(updateRenderOrder);
+                            _materials[i].removeEventListener("shaderChanged", updateRenderOrder);
                         }
                         _materials = [];
                         for (i = 0; i < newValue.length; i++) {
@@ -114,11 +117,9 @@ define(["kick/core/Constants", "kick/material/Material", "kick/core/Util", "kick
                                 }
                             }
                             _materials[i] = newValue[i];
-                            _materials[i].addShaderChangeListener(updateRenderOrder);
+                            _materials[i].addEventListener("shaderChanged", updateRenderOrder);
                         }
-                        if (thisObj.gameObject) {
-                            thisObj.gameObject.notifyComponentUpdated(thisObj);
-                        }
+                        thisObj.fireEvent("componentUpdated", this);
                     },
                     enumerable: true
                 },

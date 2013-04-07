@@ -559,6 +559,62 @@ YUI().use('node', 'console', 'test', function (Y) {
             shader2.renderOrder = 3;
             Y.Assert.areEqual(3, material2.renderOrder, "material2 has renderorder 3");
             Y.Assert.areEqual(3, meshRenderer.renderOrder, "meshrenderer has renderorder 3");
+        },
+        testObservable: function(){
+            var kick = KICK;
+            var observable = new kick.core.Observable(["Foo"]);
+            Y.Assert.isUndefined(observable.getObservers("Unused"), "Observable must return a undefined on non-registered event names");
+            var fooValue = 0;
+            var eventListener = function(v){fooValue = v;};
+            observable.addEventListener("Foo", eventListener);
+            Y.Assert.areEqual(0, fooValue);
+            observable.fireEvent("Foo", 1);
+            Y.Assert.areEqual(1, fooValue);
+            observable.removeEventListener("Foo", eventListener);
+            observable.fireEvent("Foo", 2);
+            Y.Assert.areEqual(1, fooValue);
+
+            observable.Foo = eventListener;
+            observable.fireEvent("Foo", 3);
+            Y.Assert.areEqual(3, fooValue);
+        },
+        testObservableMixin: function(){
+            var kick = KICK;
+            var observable = {};
+            kick.core.Observable.call(observable,["Foo"]);
+            Y.Assert.isUndefined(observable.getObservers("Unused"), "Observable must return a undefined on non-registered event names");
+            var fooValue = 0;
+            var eventListener = function(v){fooValue = v;};
+            observable.addEventListener("Foo", eventListener);
+            Y.Assert.areEqual(0, fooValue);
+            observable.fireEvent("Foo", 1);
+            Y.Assert.areEqual(1, fooValue);
+            observable.removeEventListener("Foo", eventListener);
+            observable.fireEvent("Foo", 2);
+            Y.Assert.areEqual(1, fooValue);
+
+            observable.Foo = eventListener;
+            observable.fireEvent("Foo", 3);
+            Y.Assert.areEqual(3, fooValue);
+        },
+        testObservableMeshRenderer: function(){
+            var kick = KICK;
+            var meshRenderer = new kick.scene.MeshRenderer();
+            var value = 1;
+            var updateValue = function(){
+                value = 2;
+            };
+            var project = engine.project;
+            var material = new KICK.material.Material({
+                  shader: project.load(project.ENGINE_SHADER_DIFFUSE),
+                     uniformData:{
+                          mainColor:[1.0,0.0,0.9,0.5],
+                          mainTexture: project.load(project.ENGINE_TEXTURE_WHITE)
+                      }
+                  });
+            meshRenderer.addEventListener("componentUpdated", updateValue);
+            meshRenderer.material = material; // invokes componentUpdated
+            Y.Assert.areEqual(2, value);
         }
     });
 

@@ -1,5 +1,5 @@
-define(["kick/core/ProjectAsset", "kick/core/Constants", "./GLSLConstants", "kick/core/Util", "./UniformDescriptor", "kick/math/Vec3", "kick/math/Vec4", "kick/math/Mat4", "kick/math/Mat3", "kick/core/EngineSingleton"],
-    function (ProjectAsset, Constants, GLSLConstants, Util, UniformDescriptor, Vec3, Vec4, Mat4, Mat3, EngineSingleton) {
+define(["kick/core/ProjectAsset", "kick/core/Constants", "./GLSLConstants", "kick/core/Util", "./UniformDescriptor", "kick/math/Vec3", "kick/math/Vec4", "kick/math/Mat4", "kick/math/Mat3", "kick/core/EngineSingleton", "kick/core/Observable"],
+    function (ProjectAsset, Constants, GLSLConstants, Util, UniformDescriptor, Vec3, Vec4, Mat4, Mat3, EngineSingleton, Observable) {
         "use strict";
 
         var Shader,
@@ -30,6 +30,7 @@ define(["kick/core/ProjectAsset", "kick/core/Constants", "./GLSLConstants", "kic
          *          <li><code>_mvProj</code> (mat4) Model view projection matrix</li>
          *          <li><code>_m</code> (mat4) Model matrix</li>
          *          <li><code>_mv</code> (mat4) Model view matrix</li>
+         *          <li><code>_v</code> (mat4) View matrix</li>
          *          <li><code>_worldCamPos</code> (vec4) Camera position in world coordinate</li>
          *          <li><code>_world2object</code> (mat4) World to Object coordinate transformation</li>
          *          <li><code>_norm</code> (mat3) Normal matrix (the inverse transpose of the upper 3x3 model view matrix - needed when scaling is scaling is non-uniform)</li>
@@ -84,7 +85,6 @@ define(["kick/core/ProjectAsset", "kick/core/Constants", "./GLSLConstants", "kic
                 gl = engine.gl,
                 glState = engine.glState,
                 thisObj = this,
-                listeners = [],
                 _shaderProgramId = -1,
                 _depthMask = true,
                 _faceCulling = Constants.GL_BACK,
@@ -119,17 +119,6 @@ define(["kick/core/ProjectAsset", "kick/core/Constants", "./GLSLConstants", "kic
                  */
                 updateBlendKey = function () {
                     blendKey = (_blendSFactorRGB + (_blendDFactorRGB << 10) + (_blendSFactorAlpha << 20) + (_blendDFactorAlpha << 30)) * (_blend ? -1 : 1);
-                },
-                /**
-                 * Calls the listeners registered for this shader
-                 * @method notifyListeners
-                 * @private
-                 */
-                notifyListeners = function () {
-                    var i;
-                    for (i = 0; i < listeners.length; i++) {
-                        listeners[i](thisObj);
-                    }
                 },
                 /**
                  * Invoke shader compilation
@@ -287,32 +276,47 @@ define(["kick/core/ProjectAsset", "kick/core/Constants", "./GLSLConstants", "kic
                     }
                 };
 
+            Observable.call(this, [
+            /**
+             * Fired when shader is updated
+             * @event shaderUpdated
+             * @param {kick.material.Shader} shaderInstance
+             */
+                "shaderUpdated"
+            ]
+            );
+
             /**
              * Registers a listener to the shader.
              * @method addListener
              * @param {Function} listenerFn a function called when shader is updated
+             * @deprecated Use addEventListener('shaderUpdated', listenerFn) instead
              */
             this.addListener = function (listenerFn) {
+                Util.fail("Use addEventListener('shaderUpdated', listenerFn) instead");
                 if (ASSERT) {
                     if (typeof listenerFn !== "function") {
                         Util.warn("Shader.addListener: listenerFn not function");
                     }
                 }
-                listeners.push(listenerFn);
+                thisObj.addEventListener("shaderUpdated", listenerFn);
+
             };
 
             /**
              * Removes a listener to the shader.
              * @method removeListener
              * @param {Function} listenerFn a function called when shader is updated
+             * @deprecated Use removeEventListener('shaderUpdated', listenerFn) instead
              */
             this.removeListener = function (listenerFn) {
+                Util.fail("Use addEventListener('shaderUpdated', listenerFn) instead");
                 if (ASSERT) {
                     if (typeof listenerFn !== "function") {
                         Util.warn("Shader.removeListener: listenerFn not function");
                     }
                 }
-                Util.removeElementFromArray(listeners, listenerFn, true);
+                thisObj.removeEventListener("shaderUpdated", listenerFn)
             };
 
             /**
@@ -339,7 +343,8 @@ define(["kick/core/ProjectAsset", "kick/core/Constants", "./GLSLConstants", "kic
                 }
             };
 
-            engine.addContextListener(this);
+            engine.addEventListener('contextLost', this.contextLost);
+            engine.addEventListener('contextRestored', this.contextRestored);
 
             Object.defineProperties(this, {
                 /**
@@ -462,7 +467,8 @@ define(["kick/core/ProjectAsset", "kick/core/Constants", "./GLSLConstants", "kic
                 /**
                  * Render order. Default value 1000. The following ranges are predefined:<br>
                  * 0-999: Background. Mainly for skyboxes etc<br>
-                 * 1000-1999 Opaque geometry  (default)<br>
+                 * 1000-1998 Opaque geometry  (default)<br>
+                 * 1999-1999 Skybox<br>
                  * 2000-2999 Transparent. This queue is sorted in a back to front order before rendering.<br>
                  * 3000-3999 Overlay
                  * @property renderOrder
@@ -475,7 +481,7 @@ define(["kick/core/ProjectAsset", "kick/core/Constants", "./GLSLConstants", "kic
                             Util.fail("Shader.renderOrder must be a number");
                         }
                         _renderOrder = value;
-                        notifyListeners();
+                        thisObj.fireEvent('shaderUpdated', thisObj);
                     }
                 },
                 /**
@@ -958,7 +964,7 @@ define(["kick/core/ProjectAsset", "kick/core/Constants", "./GLSLConstants", "kic
 
                 thisObj.markUniformUpdated();
 
-                notifyListeners();
+                thisObj.fireEvent('shaderUpdated', thisObj);
 
                 return !compileError;
             };
@@ -970,7 +976,8 @@ define(["kick/core/ProjectAsset", "kick/core/Constants", "./GLSLConstants", "kic
              */
             this.destroy = function () {
                 if (_shaderProgramId !== -1) {
-                    engine.removeContextListener(thisObj);
+                    engine.removeEventListener('contextLost', thisObj.contextLost);
+                    engine.removeEventListener('contextRestored', thisObj.contextRestored);
                     gl.deleteProgram(_shaderProgramId);
                     _shaderProgramId = -1;
                     engine.project.removeResourceDescriptor(thisObj.uid);
@@ -1191,6 +1198,7 @@ define(["kick/core/ProjectAsset", "kick/core/Constants", "./GLSLConstants", "kic
                 glState = this.glState,
                 modelMatrix = lookupUniform._m,
                 mv = lookupUniform._mv,
+                v = lookupUniform._v,
                 worldCamPos = lookupUniform._worldCamPos,
                 world2object = lookupUniform._world2object,
                 mvProj = lookupUniform._mvProj,
@@ -1234,6 +1242,9 @@ define(["kick/core/ProjectAsset", "kick/core/Constants", "./GLSLConstants", "kic
                     }
                     gl.uniformMatrix3fv(norm.location, false, normalMatrix);
                 }
+            }
+            if (v){
+                gl.uniformMatrix4fv(v.location, false, engineUniforms.viewMatrix);
             }
             if (worldCamPos) {
                 gl.uniform3fv(worldCamPos.location, engineUniforms.currentCameraTransform.position);
